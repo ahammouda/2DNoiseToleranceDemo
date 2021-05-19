@@ -91,7 +91,8 @@ export function mathContains(array: Array<any>, candidate: any){
   let found = false;
   let index = 0;
   for (index = 0; index < array.length; index++){
-    if (math.equal(array[index], candidate)) {
+    const elemCompares = math.deepEqual(array[index], candidate);
+    if (elemCompares === true) {
       found = true;
       break;
     }
@@ -120,7 +121,7 @@ export function angleSearch(a: math.matrix) {
     }
   });
 
-  console.log('Sp', Sp);
+  // console.log('a', a, 'Sp', Sp);
 
   const THETA = [];
   Sp.forEach(sp => {
