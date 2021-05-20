@@ -162,7 +162,7 @@ export function angleSearch(a: math.matrix) {
     THETA.push(
       convertFullCircle(
         // truncateError(
-          math.atan2(det, dot), true // * 180 / math.pi -- uncomment for error
+          math.atan2(det, dot), true // * 180 / math.pi -- uncomment for error checking
         // )
       )
     );

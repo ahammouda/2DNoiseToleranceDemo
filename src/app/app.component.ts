@@ -50,7 +50,6 @@ export class AppComponent implements OnInit {
 
     R.forEach(a => {
       const THETA = utils.angleSearch(a);
-      // console.log(a, THETA);
 
       THETA.forEach(theta => {
         // Rotate and flip state vectors
@@ -66,6 +65,9 @@ export class AppComponent implements OnInit {
         const u = Up[xIndex][yIndex];
 
         console.log('a', a, 'rot', xIndex, yIndex);
+        // TODO: Seem to be switching between deg and radians unsystematically
+        //        - figure out where it makes sense to switch to degrees (if at all), and where to truncate error,
+        //          and make sure that's being done consistently
         // TODO: Before moving on, verify angle search is returning right thetas for all regions CHECK
         // TODO: Before performing the official calculations, start by logging the Pp's, then
         //       Bp's, etc - ALSO:  give xl,xr,yl,yr unique values so that you can more easily debug what's
