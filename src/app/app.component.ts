@@ -50,31 +50,31 @@ export class AppComponent implements OnInit {
 
     R.forEach(a => {
       const THETA = utils.angleSearch(a);
-      console.log(a, THETA);
-      // If a === [0, 0] this fails at where 270 degrees should be calculated (same for a == [0, 1] and [-1, 0])
-      // => Need to write this out and double check the theory
-      // THETA.forEach(theta => {
-      //   // Rotate and flip state vectors
-      //   const [xIndex, yIndex] = utils.rotIdXY(theta);
-      //   const Pp = utils.flip(this.P, a);
-      //   const Bp = utils.flip(this.B, a);
-      //   const Up = utils.flip(this.U, a);
-      //   const Dp = utils.flip(this.DELTA, a);
-      //   // Grab state points
-      //   const p = Pp[xIndex][yIndex];
-      //   const b = Bp[xIndex][yIndex];
-      //   const d = Dp[xIndex][yIndex];
-      //   const u = Up[xIndex][yIndex];
+      // console.log(a, THETA);
 
-      //   // TODO: Before moving on, verify angle search is returning right thetas for all regions
-      //   // TODO: Before performing the official calculations, start by logging the Pp's, then
-      //   //       Bp's, etc - ALSO:  give xl,xr,yl,yr unique values so that you can more easily debug what's
-      //   //       happening.  Even use regime here (but in non-symbolic way):
-      //   // https://docs.google.com/spreadsheets/d/17FR3-6PX0GQnjRPeCvUM2gBa9fkrauOUz9QKmIgrnJg/edit#gid=0
-      //   // const hTheta = math.multiply(utils.rot(-1 * theta), math.transpose(p));
-      //   // console.log(p, b, d, u);
-      //   // console.log(hTheta);
-      // });
+      THETA.forEach(theta => {
+        // Rotate and flip state vectors
+        const [xIndex, yIndex] = utils.rotIdXY(theta);
+        const Pp = utils.flip(this.P, a);
+        const Bp = utils.flip(this.B, a);
+        const Up = utils.flip(this.U, a);
+        const Dp = utils.flip(this.DELTA, a);
+        // Grab state points
+        const p = Pp[xIndex][yIndex];
+        const b = Bp[xIndex][yIndex];
+        const d = Dp[xIndex][yIndex];
+        const u = Up[xIndex][yIndex];
+
+        console.log('a', a, 'rot', xIndex, yIndex);
+        // TODO: Before moving on, verify angle search is returning right thetas for all regions CHECK
+        // TODO: Before performing the official calculations, start by logging the Pp's, then
+        //       Bp's, etc - ALSO:  give xl,xr,yl,yr unique values so that you can more easily debug what's
+        //       happening.  Even use regime here (but in non-symbolic way):
+        // https://docs.google.com/spreadsheets/d/17FR3-6PX0GQnjRPeCvUM2gBa9fkrauOUz9QKmIgrnJg/edit#gid=0
+        // const hTheta = math.multiply(utils.rot(-1 * theta), math.transpose(p));
+        // console.log(p, b, d, u);
+        // console.log(hTheta);
+      });
     });
 
     // // One way to think about this is to plot a polyline for each region; challenge is grouping regions from matrices

@@ -17,6 +17,21 @@ export function truncateError(value: number): number {
   return value;
 }
 
+/**
+ *
+ * @param value returned by a trig function (which only operates 0-180^o, converted to 0-360^o scale)
+ * @returns value on a 0-360^o scale
+ */
+export function convertFullCircle(value: number, rad = false): number {
+  if (rad && value < 0) {
+    return 2 * math.pi + value;
+  }
+  if (!rad && value < 0) {
+    return 360 + value;
+  }
+  return value;
+}
+
 export function origin(xl: number, xr: number, yl: number, yr: number){
   return math.matrix([
     xl + (xr - xl) / 2,
@@ -26,25 +41,28 @@ export function origin(xl: number, xr: number, yl: number, yr: number){
 
 export function rotIdXY(theta: number){
   const vfp = math. multiply(rot(theta), vf);
-  const rx = math.subset(vfp, math.index(0));
-  const ry = math.subset(vfp, math.index(1));
+
+  const rx = truncateError(math.subset(vfp, math.index(0, 0)));
+  const ry = truncateError(math.subset(vfp, math.index(1, 0)));
+
   return [
     math.min(1 + ry, 1), // xIndex
     math.min(1 + rx, 1)  // yIndex
   ];
 }
 
+// TODO: Accept degrees or radians
 export function rot(theta: number){
   // TODO: Some numerical precision this way - see if you can do better with radians, and then convert when you
   //       need to to 0,1,-1
-  return math.matrix([
-    [truncateError(math.sin(math.unit(theta, 'deg'))), truncateError(math.cos( math.unit(theta, 'deg')))],
-    [truncateError(math.cos(math.unit(theta, 'deg'))), -truncateError(math.sin(math.unit(theta, 'deg')))]
-  ]);
   // return math.matrix([
-  //   [math.sin(theta), math.cos(theta)],
-  //   [math.cos(theta), -math.sin(theta)]
+  //   [truncateError(math.sin(math.unit(theta, 'deg'))), truncateError(math.cos( math.unit(theta, 'deg')))],
+  //   [truncateError(math.cos(math.unit(theta, 'deg'))), -truncateError(math.sin(math.unit(theta, 'deg')))]
   // ]);
+  return math.matrix([
+    [math.sin(theta), math.cos(theta)],
+    [math.cos(theta), -math.sin(theta)]
+  ]);
 
 }
 
@@ -59,10 +77,10 @@ export function flip(stateArray: Array<any>, a: math.matrix) {
   if (math.size(stateArray).length < 3) {
     let rowFlips = [[0, 1], [1, 0]]; // identity
     let colFlips = [[0, 1], [1, 0]]; // identity
-    if ( math.abs( math.subset(a, math.index(0)) ) === 1 ){
+    if ( math.abs( math.subset(a, math.index(0, 0)) ) === 1 ){
       rowFlips = [[1, 0], [0, 1]];
     }
-    if ( math.abs( math.subset(a, math.index(1)) ) === 1 ){
+    if ( math.abs( math.subset(a, math.index(1, 0)) ) === 1 ){
       colFlips = [[1, 0], [0, 1]];
     }
     return math.multiply(rowFlips, stateArray, colFlips);
@@ -71,12 +89,12 @@ export function flip(stateArray: Array<any>, a: math.matrix) {
   const flippedMatrix = stateArray.map(x => Object.assign({}, x)); // deep copy
   // flippedMatrix = [flippedMatrix[0], flippedMatrix[1]];
 
-  if ( math.abs( math.subset(a, math.index(0)) ) === 1 ){
+  if ( math.abs( math.subset(a, math.index(0, 0)) ) === 1 ){
     const tmpRow = [flippedMatrix[0][0], flippedMatrix[0][1]];
     flippedMatrix[0] = [flippedMatrix[1][0], flippedMatrix[1][1] ];
     flippedMatrix[1] = tmpRow;
   }
-  if ( math.abs( math.subset(a, math.index(1)) ) === 1 ){
+  if ( math.abs( math.subset(a, math.index(1, 0)) ) === 1 ){
     const tmpCol = [ flippedMatrix[0][1], flippedMatrix[1][1] ];
 
     flippedMatrix[0][1] = flippedMatrix[0][0];
@@ -104,12 +122,24 @@ export function mathContains(array: Array<any>, candidate: any){
   }
 }
 
+/**
+ * atan2 reference: https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors
+ * @param a region vector \in consts.R
+ * @returns THETA: Array<number> where each element in the array are the angles of rotation required for this region to
+ *                 have a complete tiling
+ */
 export function angleSearch(a: math.matrix) {
+  // const Su = [
+  //   math.matrix([-1, 1]),
+  //   math.matrix([1, 1]),
+  //   math.matrix([-1, -1]),
+  //   math.matrix([1, -1])
+  // ];
   const Su = [
-    math.matrix([-1, 1]),
-    math.matrix([1, 1]),
-    math.matrix([-1, -1]),
-    math.matrix([1, -1])
+    math.matrix([[-1], [1]]),
+    math.matrix([[1], [1]]),
+    math.matrix([[-1], [-1]]),
+    math.matrix([[1], [-1]])
   ];
 
   const Sp = [];
@@ -124,14 +154,19 @@ export function angleSearch(a: math.matrix) {
   // console.log('a', a, 'Sp', Sp);
 
   const THETA = [];
-  Sp.forEach(sp => {
+  Sp.forEach((sp, index) => {
     const u = math.subtract(sp, a);
 
+    const dot = math.squeeze(math.multiply(math.transpose(vf), u));
+    const det = math.squeeze(math.det(math.concat(vf, u)));
     THETA.push(
-      math.acos(
-        math.multiply(u, vf) / ( math.distance([0, 0], u) * math.distance([0, 0], vf) )
-      ) * 180 / math.pi
-    ) ;
+      convertFullCircle(
+        // truncateError(
+          math.atan2(det, dot), true // * 180 / math.pi -- uncomment for error
+        // )
+      )
+    );
+    // console.log('a', a, 'u', u, 'theta', THETA[index]);
   });
   return THETA;
 }
