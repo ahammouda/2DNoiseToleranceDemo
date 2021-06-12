@@ -92,11 +92,15 @@ export class AppComponent implements OnInit {
         math.abs( this.eY(ra) ) * this.eX(ru) * d;
         const Vtheta = this.eY(rp) + this.eY(ra) * this.eY(rb) - this.eX(rO) * (1 - math.abs(this.eY(ra))) +
         math.abs(this.eX(ra)) * this.eY(ru) * d;
+        const shift = 10;
+        const localOrigin = [[0], [0]];
 
-        drawPoints[regionColors[i]].push([0, 0]);
-        drawPoints[regionColors[i]].push([0, Vtheta]);
-        drawPoints[regionColors[i]].push([Htheta, Vtheta]);
-        drawPoints[regionColors[i]].push([Htheta, 0]);
+        // TODO: This is not how to do translation - need to add translated element to the basic calculation
+        ///       only input to translation is the region vector
+        drawPoints[regionColors[i]].push([this.tX(localOrigin) + shift, this.tY(localOrigin) + shift] );
+        drawPoints[regionColors[i]].push( [this.tX([[0], [Vtheta]]) + shift, this.tY([[0], [Vtheta]]) + shift] );
+        drawPoints[regionColors[i]].push([ this.tX([[Htheta], [Vtheta]]) + shift, this.tY([[Htheta], [Vtheta]]) + shift ]);
+        drawPoints[regionColors[i]].push([ this.tX([[Htheta], [0]]) + shift, this.tY([[Htheta], [0]]) + shift ]);
 
         // https://docs.google.com/spreadsheets/d/17FR3-6PX0GQnjRPeCvUM2gBa9fkrauOUz9QKmIgrnJg/edit#gid=0
         // console.log(p, b, d, u);
@@ -168,7 +172,7 @@ export class AppComponent implements OnInit {
   }
 
   renderPoint(x: number, y: number, color: string) {
-    const scale = 5;
+    const scale = 1;
     const xScale = d3.scaleLinear()
       .domain([this.B1n1, this.B1p1])
       .range([this.B1n1 * scale, this.B1p1 * scale]);
@@ -181,7 +185,7 @@ export class AppComponent implements OnInit {
       .attr('cx', xScale(x))
       .attr('cy', yScale(y))
       .attr('fill', color)
-      .attr('r', 10);
+      .attr('r', 20);
   }
 
   draw(points: Array<Array<number>>): void {
