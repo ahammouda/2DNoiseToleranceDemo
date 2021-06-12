@@ -32,22 +32,18 @@ export function convertFullCircle(value: number, rad = false): number {
   return value;
 }
 
-export function origin(xl: number, xr: number, yl: number, yr: number){
-  return math.matrix([
-    xl + (xr - xl) / 2,
-    yl + (yr - yl) / 2
-  ]);
-}
 
 export function rotIdXY(theta: number){
+  // console.log(theta * 180 / Math.PI);
+  // console.log(rot(theta));
   const vfp = math. multiply(rot(theta), vf);
 
   const rx = truncateError(math.subset(vfp, math.index(0, 0)));
   const ry = truncateError(math.subset(vfp, math.index(1, 0)));
 
   return [
-    math.min(1 + ry, 1), // xIndex
-    math.min(1 + rx, 1)  // yIndex
+    math.min(1 + rx, 1), // xIndex
+    math.min(1 + ry, 1)  // yIndex
   ];
 }
 
@@ -60,14 +56,29 @@ export function rot(theta: number){
   //   [truncateError(math.cos(math.unit(theta, 'deg'))), -truncateError(math.sin(math.unit(theta, 'deg')))]
   // ]);
   return math.matrix([
-    [math.sin(theta), math.cos(theta)],
-    [math.cos(theta), -math.sin(theta)]
+    [math.cos(theta), -math.sin(theta)],
+    [math.sin(theta), math.cos(theta)]
   ]);
 
 }
 
+// a: 1x2 vector
+export function pprinta(a: math.matrix) {
+  return `[${math.subset(a, math.index(0, 0))}, ${math.subset(a, math.index(1, 0))}]`;
+}
 /**
- * In case of 2 by 2 state matrix, can transform to matrix, and perform the flip using the other method
+ * Replicates the following operator on M (_{a_xa_y})given a state array whose outer dimensions are a 2x2 matrix
+ * (state array 2x2x2 in general, and we only want to operate on outer-most portion)
+ *
+ * M_{a_xa_y} \def \begin{bmatrix} 0 1\\ 1 0\\  \end{bmatrix}^{2-|a_x|} \cdot
+ *                  M \cdot
+ *                 \begin{bmatrix} 0 1\\ 1 0\\  \end{bmatrix}^{2-|a_y|}
+ *
+ * where stateArray = M
+ *
+ * If this math doesn't technically work, you can always split the x & y components of
+ * each inner entry of the 2x2 matrix into separate arrays, and then merge them back
+ * together
  */
 export function flip(stateArray: Array<any>, a: math.matrix) {
   // if (!( math.equal(math.size(stateArray), [2, 2]) ) && !math.equal(math.size(stateArray), [2, 2, 2])) {
@@ -75,32 +86,33 @@ export function flip(stateArray: Array<any>, a: math.matrix) {
   // }
   // strictly 2x2 case - can use matrix multiplication
   if (math.size(stateArray).length < 3) {
-    let rowFlips = [[0, 1], [1, 0]]; // identity
-    let colFlips = [[0, 1], [1, 0]]; // identity
-    if ( math.abs( math.subset(a, math.index(0, 0)) ) === 1 ){
-      rowFlips = [[1, 0], [0, 1]];
+    let rowFlips = [[1, 0], [0, 1]]; // identity
+    let colFlips = [[1, 0], [0, 1]]; // identity
+    if ( math.abs( math.subset(a, math.index(1, 0)) ) === 1 ){ // If 2nd dim (y) is indicated, flip rows
+      rowFlips = [[0, 1], [1, 0]];
     }
-    if ( math.abs( math.subset(a, math.index(1, 0)) ) === 1 ){
-      colFlips = [[1, 0], [0, 1]];
+    if ( math.abs( math.subset(a, math.index(0, 0)) ) === 1 ){ // If 1st dim (x) is indicated, flip cols
+      colFlips = [[0, 1], [1, 0]];
     }
-    return math.multiply(rowFlips, stateArray, colFlips);
+    const flippedM = math.multiply(rowFlips, stateArray, colFlips);
+    return flippedM;
   }
   // 2x2x2 - not sure how to collapse that last inner element
   const flippedMatrix = stateArray.map(x => Object.assign({}, x)); // deep copy
   // flippedMatrix = [flippedMatrix[0], flippedMatrix[1]];
 
-  if ( math.abs( math.subset(a, math.index(0, 0)) ) === 1 ){
+  if ( math.abs( math.subset(a, math.index(1, 0)) ) === 1 ){ // If 2nd dim (y) is indicated, flip rows
     const tmpRow = [flippedMatrix[0][0], flippedMatrix[0][1]];
     flippedMatrix[0] = [flippedMatrix[1][0], flippedMatrix[1][1] ];
     flippedMatrix[1] = tmpRow;
   }
-  if ( math.abs( math.subset(a, math.index(1, 0)) ) === 1 ){
+  if ( math.abs( math.subset(a, math.index(0, 0)) ) === 1 ) { // If 1st dim (x) is indicated, flip cols
     const tmpCol = [ flippedMatrix[0][1], flippedMatrix[1][1] ];
 
     flippedMatrix[0][1] = flippedMatrix[0][0];
     flippedMatrix[1][1] = flippedMatrix[1][0];
     flippedMatrix[0][0] = tmpCol[0];
-    flippedMatrix[0][1] = tmpCol[1];
+    flippedMatrix[1][0] = tmpCol[1];
   }
   return flippedMatrix;
 }
@@ -168,5 +180,6 @@ export function angleSearch(a: math.matrix) {
     );
     // console.log('a', a, 'u', u, 'theta', THETA[index]);
   });
-  return THETA;
+
+  return THETA.sort((n1, n2) => n1 - n2 );
 }
