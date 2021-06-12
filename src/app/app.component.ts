@@ -3,7 +3,10 @@ import { Component, OnInit } from '@angular/core';
 import * as d3 from 'd3';
 import * as math from 'mathjs';
 import * as utils from './utils';
-import {R, vf} from './consts';
+import { R, vf, regionColors } from './consts';
+
+const XI = 0;
+const YI = 1;
 
 @Component({
   selector: 'app-root',
@@ -14,10 +17,10 @@ export class AppComponent implements OnInit {
 
   title = 'demo2d';
 
-  B1n1 = 0;   B2n1 = 0;
+  B1n1 = 0; B2n1 = 0;
   B1p1 = 100; B2p1 = 100;
   // possible invariant -dll=> -dll=xl=yl, but xl/yl by themselves don't => dll
-  xl = 10;  yl = 10;  xr = this.B1p1 - 10; yr = this.B2p1 - 10;
+  xl = 10; yl = 10; xr = this.B1p1 - 10; yr = this.B2p1 - 10;
   dll = -10; dlr = 10; drr = 10; drl = 10;
 
   // dll = -1; dlr = -2; drr = 1; drl = 2;
@@ -26,7 +29,7 @@ export class AppComponent implements OnInit {
   U: Array<Array<Array<number>>>;
   DELTA: Array<Array<number>>;
 
-  constructor(){}
+  constructor() { }
 
   ngOnInit(): void {
     this.P = [
@@ -49,9 +52,11 @@ export class AppComponent implements OnInit {
     ];
 
     // console.log(math.size(this.P));
+    const drawPoints: { [color: string]: Array<Array<number>> } = {};
 
-    R.forEach(a => {
+    R.forEach((a, i) => {
       const THETA = utils.angleSearch(a);
+      drawPoints[regionColors[i]] = [];
 
       THETA.forEach(theta => {
         // Rotate and flip state vectors
@@ -63,22 +68,48 @@ export class AppComponent implements OnInit {
         // Grab state points
         const p = Pp[xIndex][yIndex];
         const b = Bp[xIndex][yIndex];
-        const d = Dp[xIndex][yIndex];
+        const d = Dp[xIndex][yIndex]; // Just single number rather than x,y coordinate
         const u = Up[xIndex][yIndex];
 
+        // Rotate points
+        const rp = math.multiply(utils.rot(-1 * theta), [ [p[XI]], [p[YI]] ] ); // Extract column vector
+        const rb = math.multiply(utils.rot(-1 * theta), [ [b[XI]], [b[YI]] ]);
+        const ru = math.multiply(utils.rot(-1 * theta), [ [u[XI]], [u[YI]] ]);
+        // May need to circle back on this - is it ra or did you get your dimensions confused here?
+        const ra = math.multiply(utils.rot(-1 * theta), a);
+        const rO = math.multiply(utils.rot(-1 * theta), this.O());
         // NOTE at this point (6/4/2021) flips, indexing, rotations, orientation of matrices have all been
         // relatively well verified;
-        // TODO: Good verification scheme for the rest of the boundaries
-        //       Maybe start by displaying different boundary regions separately
+        // NOTE: You can always to a case by case verification to match what's on your poster
+        //       (if a = axay && theta = q) => R(theta) = z
         // console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; Dp: `, Dp);
         console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)};  u: ${u}; rot: ${xIndex}, ${yIndex}`);
-        // https://docs.google.com/spreadsheets/d/17FR3-6PX0GQnjRPeCvUM2gBa9fkrauOUz9QKmIgrnJg/edit#gid=0
+        // TODO: For now * write H and V, and draw those out:
+        // Gotta rotate each of these terms by R_{-theta}
+
         // const hTheta = math.multiply(utils.rot(-1 * theta), math.transpose(p));
+        const Htheta = this.eX(rp) + this.eX(ra) * this.eX(rb) - this.eX(rO) * (1 - math.abs(this.eX(ra))) +
+        math.abs( this.eY(ra) ) * this.eX(ru) * d;
+        const Vtheta = this.eY(rp) + this.eY(ra) * this.eY(rb) - this.eX(rO) * (1 - math.abs(this.eY(ra))) +
+        math.abs(this.eX(ra)) * this.eY(ru) * d;
+
+        drawPoints[regionColors[i]].push([0, 0]);
+        drawPoints[regionColors[i]].push([0, Vtheta]);
+        drawPoints[regionColors[i]].push([Htheta, Vtheta]);
+        drawPoints[regionColors[i]].push([Htheta, 0]);
+
+        // https://docs.google.com/spreadsheets/d/17FR3-6PX0GQnjRPeCvUM2gBa9fkrauOUz9QKmIgrnJg/edit#gid=0
         // console.log(p, b, d, u);
         // console.log(hTheta);
       });
     });
 
+    for (const [color, points] of Object.entries(drawPoints)) {
+
+      points.forEach(element => {
+        this.renderPoint(element[0], element[1], color);
+      });
+    }
     // // One way to think about this is to plot a polyline for each region; challenge is grouping regions from matrices
 
     // // TODO: These numbers are actually what the algorithm would spit out
@@ -101,19 +132,20 @@ export class AppComponent implements OnInit {
     // const rrl = [];
   }
 
-  O(){
+  // Return column vector
+  O() {
     return math.matrix([
-      this.xl + (this.xr - this.xl) / 2,
-      this.yl + (this.yr - this.yl) / 2
+      [this.xl + (this.xr - this.xl) / 2],
+      [this.yl + (this.yr - this.yl) / 2]
     ]);
   }
 
   tX(a: math.matrix) {
-    return this.B1p1 * math.max( this.eX(a) , 0) - math.abs(this.eX(a)) * this.eX( this.O() );
+    return this.B1p1 * math.max(this.eX(a), 0) - math.abs(this.eX(a)) * this.eX(this.O());
   }
 
   tY(a: math.matrix) {
-    return this.B2p1 * math.max( this.eY(a) , 0) - math.abs(this.eY(a)) * this.eY( this.O() );
+    return this.B2p1 * math.max(this.eY(a), 0) - math.abs(this.eY(a)) * this.eY(this.O());
 
   }
 
@@ -122,7 +154,7 @@ export class AppComponent implements OnInit {
    * @param v vector
    * @returns First element from 2x1 vector v
    */
-  eX(v: math.matrix){
+  eX(v: math.matrix) {
     return math.subset(v, math.index(0, 0));
   }
 
@@ -131,21 +163,38 @@ export class AppComponent implements OnInit {
    * @param v vector
    * @returns 2nd element from 2x1 vector v
    */
-  eY(v: math.matrix){
+  eY(v: math.matrix) {
     return math.subset(v, math.index(1, 0));
+  }
+
+  renderPoint(x: number, y: number, color: string) {
+    const scale = 5;
+    const xScale = d3.scaleLinear()
+      .domain([this.B1n1, this.B1p1])
+      .range([this.B1n1 * scale, this.B1p1 * scale]);
+    const yScale = d3.scaleLinear()
+      .domain([this.B2n1, this.B2p1])
+      .range([this.B2n1 * scale, this.B2p1 * scale]);
+
+    d3.select('svg')
+      .append('circle')
+      .attr('cx', xScale(x))
+      .attr('cy', yScale(y))
+      .attr('fill', color)
+      .attr('r', 10);
   }
 
   draw(points: Array<Array<number>>): void {
     const scale = 5;
     console.log(points);
     const line = d3.line()
-        .x(d => d3.scaleLinear()
-          .domain([this.B1n1, this.B1p1])
-          .range([this.B1n1 * scale, this.B1p1 * scale])(
-            d[0]
-          )
+      .x(d => d3.scaleLinear()
+        .domain([this.B1n1, this.B1p1])
+        .range([this.B1n1 * scale, this.B1p1 * scale])(
+          d[0]
         )
-        .y(d => d3.scaleLinear()
+      )
+      .y(d => d3.scaleLinear()
         .domain([this.B2n1, this.B2p1])
         .range([this.B2n1 * scale, this.B2p1 * scale])(
           d[1]
