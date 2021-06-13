@@ -20,8 +20,8 @@ export class AppComponent implements OnInit {
   B1n1 = 0; B2n1 = 0;
   B1p1 = 100; B2p1 = 100;
   // possible invariant -dll=> -dll=xl=yl, but xl/yl by themselves don't => dll
-  xl = 10; yl = 10; xr = this.B1p1 - 10; yr = this.B2p1 - 10;
-  dll = -10; dlr = 10; drr = 10; drl = 10;
+  xl = 15; yl = 15; xr = this.B1p1 - 15; yr = this.B2p1 - 15;
+  dll = -10; dlr = -10; drr = -10; drl = -10;
 
   // dll = -1; dlr = -2; drr = 1; drl = 2;
   P: Array<Array<Array<number>>>;
@@ -56,7 +56,6 @@ export class AppComponent implements OnInit {
 
     R.forEach((a, i) => {
       const THETA = utils.angleSearch(a);
-      drawPoints[regionColors[i]] = [];
 
       THETA.forEach(theta => {
         // Rotate and flip state vectors
@@ -72,35 +71,72 @@ export class AppComponent implements OnInit {
         const u = Up[xIndex][yIndex];
 
         // Rotate points
-        const rp = math.multiply(utils.rot(-1 * theta), [ [p[XI]], [p[YI]] ] ); // Extract column vector
-        const rb = math.multiply(utils.rot(-1 * theta), [ [b[XI]], [b[YI]] ]);
-        const ru = math.multiply(utils.rot(-1 * theta), [ [u[XI]], [u[YI]] ]);
+        const rp = math.multiply(utils.rot(-1 * theta), [[p[XI]], [p[YI]]]); // Extract column vector
+        const rb = math.multiply(utils.rot(-1 * theta), [[b[XI]], [b[YI]]]);
+        const ru = math.multiply(utils.rot(-1 * theta), [[u[XI]], [u[YI]]]);
         // May need to circle back on this - is it ra or did you get your dimensions confused here?
         const ra = math.multiply(utils.rot(-1 * theta), a);
         const rO = math.multiply(utils.rot(-1 * theta), this.O());
         // NOTE at this point (6/4/2021) flips, indexing, rotations, orientation of matrices have all been
         // relatively well verified;
-        // NOTE: You can always to a case by case verification to match what's on your poster
-        //       (if a = axay && theta = q) => R(theta) = z
         // console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; Dp: `, Dp);
-        console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)};  u: ${u}; rot: ${xIndex}, ${yIndex}`);
         // TODO: For now * write H and V, and draw those out:
         // Gotta rotate each of these terms by R_{-theta}
 
+        // TODO - Think you're going to have to work through these just one region, and angle at a time to
+        //  see what's going on
+        // NOTE: You can always to a case by case verification to match what's on your poster
+        //       (if a = axay && theta = q) => R(theta) = z
         // const hTheta = math.multiply(utils.rot(-1 * theta), math.transpose(p));
         const Htheta = this.eX(rp) + this.eX(ra) * this.eX(rb) - this.eX(rO) * (1 - math.abs(this.eX(ra))) +
-        math.abs( this.eY(ra) ) * this.eX(ru) * d;
-        const Vtheta = this.eY(rp) + this.eY(ra) * this.eY(rb) - this.eX(rO) * (1 - math.abs(this.eY(ra))) +
-        math.abs(this.eX(ra)) * this.eY(ru) * d;
-        const shift = 10;
+          math.abs(this.eY(ra)) * this.eX(ru) * d;
+        const Vtheta = this.eY(rp) + this.eY(ra) * this.eY(rb) - this.eY(rO) * (1 - math.abs(this.eY(ra))) +
+          math.abs(this.eX(ra)) * this.eY(ru) * d;
+        const shift = 100;
         const localOrigin = [[0], [0]];
 
-        // TODO: This is not how to do translation - need to add translated element to the basic calculation
-        ///       only input to translation is the region vector
-        drawPoints[regionColors[i]].push([this.tX(localOrigin) + shift, this.tY(localOrigin) + shift] );
-        drawPoints[regionColors[i]].push( [this.tX([[0], [Vtheta]]) + shift, this.tY([[0], [Vtheta]]) + shift] );
-        drawPoints[regionColors[i]].push([ this.tX([[Htheta], [Vtheta]]) + shift, this.tY([[Htheta], [Vtheta]]) + shift ]);
-        drawPoints[regionColors[i]].push([ this.tX([[Htheta], [0]]) + shift, this.tY([[Htheta], [0]]) + shift ]);
+        const degTheta = utils.truncateError(theta * 180 / math.pi).toFixed(1);
+        drawPoints[`${regionColors[i]}-${degTheta}`] = [];
+
+        // Needs to be negative/positive according to relationship of incrementing and absolute dimensions
+        // TODO: Maybe document this more
+        const incX = utils.truncateError(this.eX(math.multiply(utils.rot(theta), vf)));
+        const incY = utils.truncateError(this.eY(math.multiply(utils.rot(theta), vf)));
+
+        console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)};  u: ${u}; rIdx: ${xIndex}, ${yIndex},
+         incX: ${incX}; incY: ${incY}`);
+
+        // Question is - Htheta and VTheta should be variably thought of as comprising x/y depending on theta
+        // NOTE: 4 values for each degree
+        if (`${incX}` === `${incY}`) { // theta = 0 || theta = 180
+          drawPoints[`${regionColors[i]}-${degTheta}`].push([
+            this.tX(a) + incX * this.eX(localOrigin) + shift, this.tY(a) + incY * this.eY(localOrigin) + shift
+          ]);
+          drawPoints[`${regionColors[i]}-${degTheta}`].push([
+            this.tX(a) + incX * this.eX([[0], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[0], [Vtheta]]) + shift
+          ]);
+          drawPoints[`${regionColors[i]}-${degTheta}`].push([
+            this.tX(a) + incX * this.eX([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [Vtheta]]) + shift
+          ]);
+          drawPoints[`${regionColors[i]}-${degTheta}`].push([
+            this.tX(a) + incX * this.eX([[Htheta], [0]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [0]]) + shift
+          ]);
+        } else { // theta = 90 || theta = 270
+          // NOTE: Even without testing, still think we will need to flip these when our problem is not symmetrical
+          // tx and ty still fixed (and increment direction), but the actual increment amount flips dimensions
+          drawPoints[`${regionColors[i]}-${degTheta}`].push([
+            this.tX(a) + incX * this.eY(localOrigin) + shift, this.tY(a) + incY * this.eX(localOrigin) + shift
+          ]);
+          drawPoints[`${regionColors[i]}-${degTheta}`].push([
+            this.tX(a) + incX * this.eY([[0], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[0], [Vtheta]]) + shift
+          ]);
+          drawPoints[`${regionColors[i]}-${degTheta}`].push([
+            this.tX(a) + incX * this.eY([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[Htheta], [Vtheta]]) + shift
+          ]);
+          drawPoints[`${regionColors[i]}-${degTheta}`].push([
+            this.tX(a) + incX * this.eY([[Htheta], [0]]) + shift, this.tY(a) + incY * this.eX([[Htheta], [0]]) + shift
+          ]);
+        }
 
         // https://docs.google.com/spreadsheets/d/17FR3-6PX0GQnjRPeCvUM2gBa9fkrauOUz9QKmIgrnJg/edit#gid=0
         // console.log(p, b, d, u);
@@ -109,11 +145,19 @@ export class AppComponent implements OnInit {
     });
 
     for (const [color, points] of Object.entries(drawPoints)) {
+      const [col, theta] = color.split('-');
+      if (col === '#6495ED') {
 
-      points.forEach(element => {
-        this.renderPoint(element[0], element[1], color);
-      });
+        points.forEach(element => {
+          this.renderPoint(element[0], element[1], col, '');
+        });
+      } else {
+        points.forEach(element => {
+          this.renderPoint(element[0], element[1], col, theta);
+        });
+      }
     }
+
     // // One way to think about this is to plot a polyline for each region; challenge is grouping regions from matrices
 
     // // TODO: These numbers are actually what the algorithm would spit out
@@ -145,12 +189,11 @@ export class AppComponent implements OnInit {
   }
 
   tX(a: math.matrix) {
-    return this.B1p1 * math.max(this.eX(a), 0) - math.abs(this.eX(a)) * this.eX(this.O());
+    return this.B1p1 * math.max(this.eX(a), 0) + (1 - math.abs(this.eX(a))) * this.eX(this.O());
   }
 
   tY(a: math.matrix) {
-    return this.B2p1 * math.max(this.eY(a), 0) - math.abs(this.eY(a)) * this.eY(this.O());
-
+    return this.B2p1 * math.max(this.eY(a), 0) + (1 - math.abs(this.eY(a))) * this.eY(this.O());
   }
 
   /**
@@ -171,7 +214,7 @@ export class AppComponent implements OnInit {
     return math.subset(v, math.index(1, 0));
   }
 
-  renderPoint(x: number, y: number, color: string) {
+  renderPoint(x: number, y: number, color: string, label: string) {
     const scale = 1;
     const xScale = d3.scaleLinear()
       .domain([this.B1n1, this.B1p1])
@@ -185,7 +228,15 @@ export class AppComponent implements OnInit {
       .attr('cx', xScale(x))
       .attr('cy', yScale(y))
       .attr('fill', color)
-      .attr('r', 20);
+      .attr('r', 5);
+
+    d3.select('svg')
+      .append('text')
+      .attr('x', xScale(x) + 2.5)
+      .attr('y', yScale(y) + 2.5)
+      .text(
+        label
+      );
   }
 
   draw(points: Array<Array<number>>): void {
