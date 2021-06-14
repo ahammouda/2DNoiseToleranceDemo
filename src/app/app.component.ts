@@ -7,6 +7,7 @@ import { R, vf, regionColors } from './consts';
 
 const XI = 0;
 const YI = 1;
+const RADIUS = 5;
 
 @Component({
   selector: 'app-root',
@@ -18,10 +19,16 @@ export class AppComponent implements OnInit {
   title = 'demo2d';
 
   B1n1 = 0; B2n1 = 0;
-  B1p1 = 100; B2p1 = 100;
+  B1p1 = 1000; B2p1 = 1000;
   // possible invariant -dll=> -dll=xl=yl, but xl/yl by themselves don't => dll
-  xl = 15; yl = 15; xr = this.B1p1 - 15; yr = this.B2p1 - 15;
-  dll = -10; dlr = -10; drr = -10; drl = -10;
+  // xl = 15; yl = 15; xr = this.B1p1 - 15; yr = this.B2p1 - 15;
+  // dll = -10; dlr = -10; drr = -10; drl = -10;
+
+  // xl = 30; yl = 30; xr = this.B1p1 - 20; yr = this.B2p1 - 20;
+  // dll = 20; dlr = -10; drr = 0; drl = -20;
+  // *10
+  xl = 300; yl = 300; xr = this.B1p1 - 200; yr = this.B2p1 - 200;
+  dll = 200; dlr = -100; drr = 0; drl = -200;
 
   // dll = -1; dlr = -2; drr = 1; drl = 2;
   P: Array<Array<Array<number>>>;
@@ -84,15 +91,22 @@ export class AppComponent implements OnInit {
         // Gotta rotate each of these terms by R_{-theta}
 
         // TODO - Think you're going to have to work through these just one region, and angle at a time to
-        //  see what's going on
+        //  see what's going on (pretty much done visually)
         // NOTE: You can always to a case by case verification to match what's on your poster
         //       (if a = axay && theta = q) => R(theta) = z
-        // const hTheta = math.multiply(utils.rot(-1 * theta), math.transpose(p));
+        const rSign = this.eX(math.multiply(
+          utils.rot(-1 * theta ),
+          [ [1 - math.abs(this.eX(a)) + this.eX(a)],
+            [1 - math.abs(this.eY(a)) + this.eY(a)] ]
+        ));
+        const zTerm = (1 - math.abs(this.eY(ra))) * rSign ;
+        const hTheta = this.eX(rp) + this.eX(ra) * this.eX(rb) - this.eX(rO) * (1 - math.abs(this.eX(ra))) +
+          zTerm * d;
         const Htheta = this.eX(rp) + this.eX(ra) * this.eX(rb) - this.eX(rO) * (1 - math.abs(this.eX(ra))) +
           math.abs(this.eY(ra)) * this.eX(ru) * d;
         const Vtheta = this.eY(rp) + this.eY(ra) * this.eY(rb) - this.eY(rO) * (1 - math.abs(this.eY(ra))) +
           math.abs(this.eX(ra)) * this.eY(ru) * d;
-        const shift = 100;
+        const shift = RADIUS + 10;
         const localOrigin = [[0], [0]];
 
         const degTheta = utils.truncateError(theta * 180 / math.pi).toFixed(1);
@@ -103,8 +117,8 @@ export class AppComponent implements OnInit {
         const incX = utils.truncateError(this.eX(math.multiply(utils.rot(theta), vf)));
         const incY = utils.truncateError(this.eY(math.multiply(utils.rot(theta), vf)));
 
-        console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)};  u: ${u}; rIdx: ${xIndex}, ${yIndex},
-         incX: ${incX}; incY: ${incY}`);
+        // console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)};  u: ${u}; rIdx: ${xIndex}, ${yIndex},
+        //  incX: ${incX}; incY: ${incY}`);
 
         // Question is - Htheta and VTheta should be variably thought of as comprising x/y depending on theta
         // NOTE: 4 values for each degree
@@ -115,9 +129,22 @@ export class AppComponent implements OnInit {
           drawPoints[`${regionColors[i]}-${degTheta}`].push([
             this.tX(a) + incX * this.eX([[0], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[0], [Vtheta]]) + shift
           ]);
-          drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            this.tX(a) + incX * this.eX([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [Vtheta]]) + shift
-          ]);
+          // When to apply hTheta
+          const diff = Vtheta - (Htheta - hTheta);
+          console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; ${hTheta}, ${Htheta}, ${Vtheta};
+            diff: ${diff}, d: ${d}, rSign: ${rSign}, z: ${zTerm}`);
+          if ( Vtheta > diff && d < 0) {
+            drawPoints[`${regionColors[i]}-${degTheta}`].push([
+              this.tX(a) + incX * this.eX([[hTheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[hTheta], [Vtheta]]) + shift
+            ]);
+            drawPoints[`${regionColors[i]}-${degTheta}`].push([
+              this.tX(a) + incX * this.eX([[Htheta], [diff]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [diff]]) + shift
+            ]);
+          } else {
+            drawPoints[`${regionColors[i]}-${degTheta}`].push([
+              this.tX(a) + incX * this.eX([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [Vtheta]]) + shift
+            ]);
+          }
           drawPoints[`${regionColors[i]}-${degTheta}`].push([
             this.tX(a) + incX * this.eX([[Htheta], [0]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [0]]) + shift
           ]);
@@ -130,13 +157,31 @@ export class AppComponent implements OnInit {
           drawPoints[`${regionColors[i]}-${degTheta}`].push([
             this.tX(a) + incX * this.eY([[0], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[0], [Vtheta]]) + shift
           ]);
-          drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            this.tX(a) + incX * this.eY([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[Htheta], [Vtheta]]) + shift
-          ]);
+          // When to apply hTheta (not the right condition for middle regions)
+          const diff = Vtheta - (Htheta - hTheta);
+          console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; ${hTheta}, ${Htheta}, ${Vtheta};
+            diff: ${diff}, d: ${d}, rSign: ${rSign}, z: ${zTerm}`);
+          if ( Vtheta > diff  && d < 0) {
+            drawPoints[`${regionColors[i]}-${degTheta}`].push([
+              this.tX(a) + incX * this.eY([[hTheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[hTheta], [Vtheta]]) + shift
+            ]);
+            drawPoints[`${regionColors[i]}-${degTheta}`].push([
+              this.tX(a) + incX * this.eY([[Htheta], [diff]]) + shift, this.tY(a) + incY * this.eX([[Htheta], [diff]]) + shift
+            ]);
+          } else {
+            drawPoints[`${regionColors[i]}-${degTheta}`].push([
+              this.tX(a) + incX * this.eY([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[Htheta], [Vtheta]]) + shift
+            ]);
+          }
           drawPoints[`${regionColors[i]}-${degTheta}`].push([
             this.tX(a) + incX * this.eY([[Htheta], [0]]) + shift, this.tY(a) + incY * this.eX([[Htheta], [0]]) + shift
           ]);
         }
+
+        // Final point for closing the lines
+        drawPoints[`${regionColors[i]}-${degTheta}`].push([
+          this.tX(a) + incX * this.eY(localOrigin) + shift, this.tY(a) + incY * this.eX(localOrigin) + shift
+        ]);
 
         // https://docs.google.com/spreadsheets/d/17FR3-6PX0GQnjRPeCvUM2gBa9fkrauOUz9QKmIgrnJg/edit#gid=0
         // console.log(p, b, d, u);
@@ -144,18 +189,43 @@ export class AppComponent implements OnInit {
       });
     });
 
+    // NOTE: There seems to be an issue around corner elements bleading into the center a bit which is to
+    // be expected due to the fact that we're not drawing precise bounds
     for (const [color, points] of Object.entries(drawPoints)) {
-      const [col, theta] = color.split('-');
-      if (col === '#6495ED') {
+      const [col, label] = color.split('-');
+      // if (col === '#6495ED') {
 
-        points.forEach(element => {
-          this.renderPoint(element[0], element[1], col, '');
-        });
-      } else {
-        points.forEach(element => {
-          this.renderPoint(element[0], element[1], col, theta);
-        });
+      //   points.forEach(element => {
+      //     this.renderPoint(element[0], element[1], col, '');
+      //   });
+      // } else {
+      //   points.forEach(element => {
+      //     this.renderPoint(element[0], element[1], col, label);
+      //   });
+      // }
+      const center = '#6495ED';
+      if (col === center) {         // Center only
+        this.draw(points, col, label);
       }
+      // const corners = [
+      //   '#800000', // maroon
+      //   '#808000', // olive
+      //   '#00FF00', // lime
+      //   '#E97451', // burnt scienna
+      // ];
+      // if (col === corners[0] || col  === corners[1] || col  === corners[2] ||  col === corners[3] ) {         // Center only
+      //   this.draw(points, col, label);
+      // }
+      const sides = [
+        '#FF00FF', // fusia
+        '#CCCCFF', // purplish
+        '#00FFFF', // aqua
+        '#800080', // purple
+      ];
+      if (col === sides[0] || col  === sides[1] || col  === sides[2] ||  col === sides[3] ) {         // Center only
+        this.draw(points, col, label);
+      }
+
     }
 
     // // One way to think about this is to plot a polyline for each region; challenge is grouping regions from matrices
@@ -228,7 +298,7 @@ export class AppComponent implements OnInit {
       .attr('cx', xScale(x))
       .attr('cy', yScale(y))
       .attr('fill', color)
-      .attr('r', 5);
+      .attr('r', RADIUS);
 
     d3.select('svg')
       .append('text')
@@ -239,8 +309,16 @@ export class AppComponent implements OnInit {
       );
   }
 
-  draw(points: Array<Array<number>>): void {
-    const scale = 5;
+  draw(points: Array<Array<number>>, color: string, label: string = ''): void {
+    const scale = 1;
+    // TODO: A bit redundant
+    const xScale = d3.scaleLinear()
+      .domain([this.B1n1, this.B1p1])
+      .range([this.B1n1 * scale, this.B1p1 * scale]);
+    const yScale = d3.scaleLinear()
+      .domain([this.B2n1, this.B2p1])
+      .range([this.B2n1 * scale, this.B2p1 * scale]);
+
     console.log(points);
     const line = d3.line()
       .x(d => d3.scaleLinear()
@@ -262,7 +340,25 @@ export class AppComponent implements OnInit {
       .attr('d', line(points))
       .attr('stroke', 'black')
       .attr('stroke-width', 4)
-      .attr('fill', 'white');
+      .attr('fill', color)
+      .attr('fill-opacity', 0.5);
 
+    // Find min/max, and midpoint for all the points
+    // Then append text at that midpoint for the label
+    if (label !== '') {
+      const minX = math.min( points.map(p => p[0]) );
+      const maxX = math.max( points.map(p => p[0]) );
+      const minY = math.min( points.map(p => p[1]) );
+      const maxY = math.max( points.map(p => p[1]) );
+
+      d3.select('svg')
+      .append('text')
+      .attr('x', minX + (maxX - minX) / 2 )
+      .attr('y', minY + (maxY - minY) / 2 )
+      .text(
+        `\u03b8 = ${label}`
+      );
+
+    }
   }
 }
