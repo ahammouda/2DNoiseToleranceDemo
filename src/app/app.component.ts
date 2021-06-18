@@ -94,11 +94,9 @@ export class AppComponent implements OnInit {
         //  see what's going on (pretty much done visually)
         // NOTE: You can always to a case by case verification to match what's on your poster
         //       (if a = axay && theta = q) => R(theta) = z
-        const rSign = this.eX(math.multiply(
-          utils.rot(-1 * theta ),
-          [ [1 - math.abs(this.eX(a)) + this.eX(a)],
-            [1 - math.abs(this.eY(a)) + this.eY(a)] ]
-        ));
+        const rSign = math.min(
+          ru
+        );
         const zTerm = (1 - math.abs(this.eY(ra))) * rSign ;
         const hTheta = this.eX(rp) + this.eX(ra) * this.eX(rb) - this.eX(rO) * (1 - math.abs(this.eX(ra))) +
           zTerm * d;
@@ -133,7 +131,7 @@ export class AppComponent implements OnInit {
           const diff = Vtheta - (Htheta - hTheta);
           console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; ${hTheta}, ${Htheta}, ${Vtheta};
             diff: ${diff}, d: ${d}, rSign: ${rSign}, z: ${zTerm}`);
-          if ( Vtheta > diff && d < 0) {
+          if ( Vtheta > diff ) {
             drawPoints[`${regionColors[i]}-${degTheta}`].push([
               this.tX(a) + incX * this.eX([[hTheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[hTheta], [Vtheta]]) + shift
             ]);
@@ -161,7 +159,7 @@ export class AppComponent implements OnInit {
           const diff = Vtheta - (Htheta - hTheta);
           console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; ${hTheta}, ${Htheta}, ${Vtheta};
             diff: ${diff}, d: ${d}, rSign: ${rSign}, z: ${zTerm}`);
-          if ( Vtheta > diff  && d < 0) {
+          if ( Vtheta > diff ) {
             drawPoints[`${regionColors[i]}-${degTheta}`].push([
               this.tX(a) + incX * this.eY([[hTheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[hTheta], [Vtheta]]) + shift
             ]);
