@@ -115,31 +115,43 @@ export class AppComponent implements OnInit {
 
         // Question is - Htheta and VTheta should be variably thought of as comprising x/y depending on theta
         // NOTE: 4 values for each degree
-        if (`${incX}` === `${incY}`) { // theta = 0 || theta = 180
+        if (true){ // `${incX}` === `${incY}`) { // theta = 0 || theta = 180
+          let [xAdder, yAdder] = this.invariantIncrement(theta, this.eX(localOrigin), this.eY(localOrigin));
           drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            this.tX(a) + incX * this.eX(localOrigin) + shift, this.tY(a) + incY * this.eY(localOrigin) + shift
+            // this.tX(a) + incX * this.eX(localOrigin) + shift, this.tY(a) + incY * this.eY(localOrigin) + shift
+            this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
           ]);
+          [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[0], [Vtheta]]), this.eY([[0], [Vtheta]]) );
           drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            this.tX(a) + incX * this.eX([[0], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[0], [Vtheta]]) + shift
+            // this.tX(a) + incX * this.eX([[0], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[0], [Vtheta]]) + shift
+            this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
           ]);
           // When to apply hTheta
           const diff = Vtheta - (Htheta - hTheta);
           console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; ${hTheta}, ${Htheta}, ${Vtheta};
             diff: ${diff}, d: ${d}, rSign: ${rSign}, z: ${zTerm}`);
           if ( Vtheta > diff ) {
+            [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[hTheta], [Vtheta]]), this.eY([[hTheta], [Vtheta]]) );
             drawPoints[`${regionColors[i]}-${degTheta}`].push([
-              this.tX(a) + incX * this.eX([[hTheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[hTheta], [Vtheta]]) + shift
+              // this.tX(a) + incX * this.eX([[hTheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[hTheta], [Vtheta]]) + shift
+              this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
             ]);
+            [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[Htheta], [diff]]), this.eY([[Htheta], [diff]]) );
             drawPoints[`${regionColors[i]}-${degTheta}`].push([
-              this.tX(a) + incX * this.eX([[Htheta], [diff]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [diff]]) + shift
+              // this.tX(a) + incX * this.eX([[Htheta], [diff]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [diff]]) + shift
+              this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
             ]);
           } else {
+            [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[Htheta], [Vtheta]]), this.eY([[Htheta], [Vtheta]]) );
             drawPoints[`${regionColors[i]}-${degTheta}`].push([
-              this.tX(a) + incX * this.eX([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [Vtheta]]) + shift
+              // this.tX(a) + incX * this.eX([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [Vtheta]]) + shift
+              this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
             ]);
           }
+          [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[Htheta], [0]]), this.eY([[Htheta], [0]]) );
           drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            this.tX(a) + incX * this.eX([[Htheta], [0]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [0]]) + shift
+            // this.tX(a) + incX * this.eX([[Htheta], [0]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [0]]) + shift
+            this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
           ]);
         } else { // theta = 90 || theta = 270
           // NOTE: Even without testing, still think we will need to flip these when our problem is not symmetrical
@@ -241,10 +253,13 @@ export class AppComponent implements OnInit {
   }
 
   invariantIncrement(theta, xInc, yInc): [number, number] {
-    const sign = math.multiply(utils.rot(-1 * theta), [[1], [1]]);
+    const sign = math.multiply(utils.rot(theta), [[1], [1]]); // TODO: Correct in algorithm too
     const inc = math.multiply(utils.rot(-1 * theta), [[xInc], [yInc]]);
 
-    return [this.eX(sign) * math.abs(this.eX(inc)), this.eY(sign) * math.abs(this.eY(inc))];
+    return [
+      utils.truncateError(this.eX(sign)) * math.abs(this.eX(inc)),
+      utils.truncateError(this.eY(sign)) * math.abs(this.eY(inc))
+    ];
   }
 
   // Return column vector
