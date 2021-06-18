@@ -81,17 +81,12 @@ export class AppComponent implements OnInit {
         const rp = math.multiply(utils.rot(-1 * theta), [[p[XI]], [p[YI]]]); // Extract column vector
         const rb = math.multiply(utils.rot(-1 * theta), [[b[XI]], [b[YI]]]);
         const ru = math.multiply(utils.rot(-1 * theta), [[u[XI]], [u[YI]]]);
-        // May need to circle back on this - is it ra or did you get your dimensions confused here?
         const ra = math.multiply(utils.rot(-1 * theta), a);
         const rO = math.multiply(utils.rot(-1 * theta), this.O());
         // NOTE at this point (6/4/2021) flips, indexing, rotations, orientation of matrices have all been
         // relatively well verified;
         // console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; Dp: `, Dp);
-        // TODO: For now * write H and V, and draw those out:
-        // Gotta rotate each of these terms by R_{-theta}
 
-        // TODO - Think you're going to have to work through these just one region, and angle at a time to
-        //  see what's going on (pretty much done visually)
         // NOTE: You can always to a case by case verification to match what's on your poster
         //       (if a = axay && theta = q) => R(theta) = z
         const rSign = math.min(
@@ -181,11 +176,8 @@ export class AppComponent implements OnInit {
           this.tX(a) + incX * this.eY(localOrigin) + shift, this.tY(a) + incY * this.eX(localOrigin) + shift
         ]);
 
-        // https://docs.google.com/spreadsheets/d/17FR3-6PX0GQnjRPeCvUM2gBa9fkrauOUz9QKmIgrnJg/edit#gid=0
-        // console.log(p, b, d, u);
-        // console.log(hTheta);
-      });
-    });
+      }); // End THETA loop
+    }); // End R/region loop
 
     // NOTE: There seems to be an issue around corner elements bleading into the center a bit which is to
     // be expected due to the fact that we're not drawing precise bounds
@@ -205,15 +197,15 @@ export class AppComponent implements OnInit {
       if (col === center) {         // Center only
         this.draw(points, col, label);
       }
-      // const corners = [
-      //   '#800000', // maroon
-      //   '#808000', // olive
-      //   '#00FF00', // lime
-      //   '#E97451', // burnt scienna
-      // ];
-      // if (col === corners[0] || col  === corners[1] || col  === corners[2] ||  col === corners[3] ) {         // Center only
-      //   this.draw(points, col, label);
-      // }
+      const corners = [
+        '#800000', // maroon
+        '#808000', // olive
+        '#00FF00', // lime
+        '#E97451', // burnt scienna
+      ];
+      if (col === corners[0] || col  === corners[1] || col  === corners[2] ||  col === corners[3] ) {         // Center only
+        this.draw(points, col, label);
+      }
       const sides = [
         '#FF00FF', // fusia
         '#CCCCFF', // purplish
@@ -246,6 +238,13 @@ export class AppComponent implements OnInit {
     // this.draw(rll);
 
     // const rrl = [];
+  }
+
+  invariantIncrement(theta, xInc, yInc): [number, number] {
+    const sign = math.multiply(utils.rot(-1 * theta), [[1], [1]]);
+    const inc = math.multiply(utils.rot(-1 * theta), [[xInc], [yInc]]);
+
+    return [this.eX(sign) * math.abs(this.eX(inc)), this.eY(sign) * math.abs(this.eY(inc))];
   }
 
   // Return column vector
