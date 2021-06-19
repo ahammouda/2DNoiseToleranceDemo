@@ -4,6 +4,7 @@ import * as d3 from 'd3';
 import * as math from 'mathjs';
 import * as utils from './utils';
 import { R, vf, regionColors } from './consts';
+import { ngfactoryFilePath } from '@angular/compiler/src/aot/util';
 
 const XI = 0;
 const YI = 1;
@@ -29,8 +30,13 @@ export class AppComponent implements OnInit {
   // *10
   // xl = 300; yl = 300; xr = this.B1p1 - 200; yr = this.B2p1 - 200;
   // dll = 200; dlr = -100; drr = 0; drl = -200;
-  xl = 200; yl = 300; xr = this.B1p1 - 300; yr = this.B2p1 - 200;
-  dll = -200; dlr = 0; drr = -100; drl = 200;
+  // xl = 200; yl = 300; xr = this.B1p1 - 300; yr = this.B2p1 - 200;
+  // dll = -200; dlr = 0; drr = -100; drl = 200;
+  // xl = 200; yl = 200; xr = this.B1p1 - 300; yr = this.B2p1 - 300;
+  // dll = 0; dlr = -100; drr = 200; drl = -200;
+
+  xl = 300; yl = 200; xr = this.B1p1 - 200; yr = this.B2p1 - 300;
+  dll = -100; dlr = 200; drr = -200; drl = 0;
 
   // dll = -1; dlr = -2; drr = 1; drl = 2;
   P: Array<Array<Array<number>>>;
@@ -60,8 +66,7 @@ export class AppComponent implements OnInit {
       [this.dlr, this.drr],
     ];
 
-    // console.log(math.size(this.P));
-    const drawPoints: { [color: string]: Array<Array<number>> } = {};
+    let drawPoints: { [color: string]: Array<Array<number>> } = {};
 
     R.forEach((a, i) => {
       const THETA = utils.angleSearch(a);
@@ -101,7 +106,7 @@ export class AppComponent implements OnInit {
           math.abs(this.eY(ra)) * this.eX(ru) * d;
         const Vtheta = this.eY(rp) + this.eY(ra) * this.eY(rb) - this.eY(rO) * (1 - math.abs(this.eY(ra))) +
           math.abs(this.eX(ra)) * this.eY(ru) * d;
-        const shift = RADIUS + 10;
+        const shift = 0; // RADIUS + 10;
         const localOrigin = [[0], [0]];
         // console.log('P:  ', Pp);
         console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; h=${hTheta}, H=${Htheta}, V=${Vtheta};
@@ -199,6 +204,7 @@ export class AppComponent implements OnInit {
       }); // End THETA loop
     }); // End R/region loop
 
+    drawPoints = this.flipPointsVertically(drawPoints);
     // NOTE: There seems to be an issue around corner elements bleading into the center a bit which is to
     // be expected due to the fact that we're not drawing precise bounds
     for (const [color, points] of Object.entries(drawPoints)) {
@@ -240,6 +246,7 @@ export class AppComponent implements OnInit {
 
     }
 
+    this.drawAxis();
     // // One way to think about this is to plot a polyline for each region; challenge is grouping regions from matrices
 
     // // TODO: These numbers are actually what the algorithm would spit out
@@ -260,6 +267,22 @@ export class AppComponent implements OnInit {
     // this.draw(rll);
 
     // const rrl = [];
+  }
+
+  flipPointsVertically(pointsByKey: {[key: string]: Array<Array<number>>}): {[key: string]: Array<Array<number>>} {
+    const shift = RADIUS + 10;
+
+    const flippedPoints: {[key: string]: Array<Array<number>>} = {};
+    for (const [key, points] of Object.entries(pointsByKey)) {
+      const flipped = [];
+      for (let i = points.length - 1; i >= 0; i--) {
+        flipped.push(
+          [points[i][0] + 80, this.B2p1 - points[i][1] + 100]  // TODO: Get rid of hardcoded variables
+        );
+      }
+      flippedPoints[key] = flipped;
+    }
+    return flippedPoints;
   }
 
   invariantIncrement(theta, xInc, yInc): [number, number] {
@@ -305,6 +328,38 @@ export class AppComponent implements OnInit {
    */
   eY(v: math.matrix) {
     return math.subset(v, math.index(1, 0));
+  }
+
+  drawAxis(): void {
+    // TODO: Maybe add gridlines
+    const margin = {top: 20, right: 20, bottom: 80, left: 80};   // clockwise as in CSS
+    const scale = 1;
+    const xScale = d3.scaleLinear()
+      .domain([this.B1n1, this.B1p1 + 80])
+      .range([this.B1n1 * scale, this.B1p1 + 80]);
+
+    const yScale = d3.scaleLinear()
+      .domain([this.B2n1, this.B2p1 + 80])
+      .range([this.B2p1 * scale + 80, this.B2n1 * scale]); // flipped y-range to get ticks going the right way
+
+    const xAxis = d3.axisBottom(xScale);
+    const yAxis = d3.axisLeft(yScale);
+    const g = d3.select('svg').append('g')
+      .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+    g.append('g')
+      .call(yAxis)
+      .attr('stroke', 'black')
+      .attr('stroke-opacity', 0.2)
+      .attr('stroke-width', 4)
+      .attr('font-size', 16);
+
+    g.append('g')                            // render the X axis in the inner plot area
+      .attr('transform', 'translate(0,' + (this.B2p1 + 80) + ')')  // axis runs along lower part of graph
+      .call(xAxis)
+      .attr('stroke', 'black')
+      .attr('stroke-opacity', 0.2)
+      .attr('stroke-width', 4)
+      .attr('font-size', 16);
   }
 
   renderPoint(x: number, y: number, color: string, label: string) {
