@@ -27,8 +27,10 @@ export class AppComponent implements OnInit {
   // xl = 30; yl = 30; xr = this.B1p1 - 20; yr = this.B2p1 - 20;
   // dll = 20; dlr = -10; drr = 0; drl = -20;
   // *10
-  xl = 300; yl = 300; xr = this.B1p1 - 200; yr = this.B2p1 - 200;
-  dll = 200; dlr = -100; drr = 0; drl = -200;
+  // xl = 300; yl = 300; xr = this.B1p1 - 200; yr = this.B2p1 - 200;
+  // dll = 200; dlr = -100; drr = 0; drl = -200;
+  xl = 200; yl = 300; xr = this.B1p1 - 300; yr = this.B2p1 - 200;
+  dll = -200; dlr = 0; drr = -100; drl = 200;
 
   // dll = -1; dlr = -2; drr = 1; drl = 2;
   P: Array<Array<Array<number>>>;
@@ -104,6 +106,10 @@ export class AppComponent implements OnInit {
 
         const degTheta = utils.truncateError(theta * 180 / math.pi).toFixed(1);
         drawPoints[`${regionColors[i]}-${degTheta}`] = [];
+        // const points = [
+        //   localOrigin,
+        //   [[0], [Vtheta]],
+        // ];
 
         // Needs to be negative/positive according to relationship of incrementing and absolute dimensions
         // TODO: Maybe document this more
@@ -206,18 +212,18 @@ export class AppComponent implements OnInit {
       //   });
       // }
       const center = '#6495ED';
-      if (col === center) {         // Center only
-        this.draw(points, col, label);
-      }
+      // if (col === center) {         // Center only
+      //   this.draw(points, col, label);
+      // }
       const corners = [
         '#800000', // maroon
         '#808000', // olive
         '#00FF00', // lime
         '#E97451', // burnt scienna
       ];
-      if (col === corners[0] || col  === corners[1] || col  === corners[2] ||  col === corners[3] ) {         // Center only
-        this.draw(points, col, label);
-      }
+      // if (col === corners[0] || col  === corners[1] || col  === corners[2] ||  col === corners[3] ) {         // Center only
+      //   this.draw(points, col, label);
+      // }
       const sides = [
         '#FF00FF', // fusia
         '#CCCCFF', // purplish
@@ -225,7 +231,9 @@ export class AppComponent implements OnInit {
         '#800080', // purple
       ];
       if (col === sides[0] || col  === sides[1] || col  === sides[2] ||  col === sides[3] ) {         // Center only
+        // if (label === '90.0') {
         this.draw(points, col, label);
+        // }
       }
 
     }
@@ -253,12 +261,13 @@ export class AppComponent implements OnInit {
   }
 
   invariantIncrement(theta, xInc, yInc): [number, number] {
-    const sign = math.multiply(utils.rot(theta), [[1], [1]]); // TODO: Correct in algorithm too
-    const inc = math.multiply(utils.rot(-1 * theta), [[xInc], [yInc]]);
+    // const sign = math.multiply(utils.rot(theta), [[1], [1]]); // TODO: Correct in algorithm too
+    // const inc = math.multiply(utils.rot(-1 * theta), [[xInc], [yInc]]);
+    const directionalIncrement = math.multiply(utils.rot(theta), [[xInc], [yInc]]); // TODO: Correct in algorithm too
 
     return [
-      utils.truncateError(this.eX(sign)) * math.abs(this.eX(inc)),
-      utils.truncateError(this.eY(sign)) * math.abs(this.eY(inc))
+      utils.truncateError(this.eX(directionalIncrement)),
+      utils.truncateError(this.eY(directionalIncrement))
     ];
   }
 
