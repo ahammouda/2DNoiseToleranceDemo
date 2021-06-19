@@ -42,7 +42,7 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     this.P = [
-      [[this.xl, this.xl], [this.xr, this.yl]],
+      [[this.xl, this.yl], [this.xr, this.yl]],
       [[this.xl, this.yr], [this.xr, this.yr]],
     ];
     this.B = [
@@ -103,7 +103,9 @@ export class AppComponent implements OnInit {
           math.abs(this.eX(ra)) * this.eY(ru) * d;
         const shift = RADIUS + 10;
         const localOrigin = [[0], [0]];
-
+        // console.log('P:  ', Pp);
+        console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; h=${hTheta}, H=${Htheta}, V=${Vtheta};
+        rp=${utils.pprinta(rp)};  rO=${utils.pprinta(rO)}`);
         const degTheta = utils.truncateError(theta * 180 / math.pi).toFixed(1);
         drawPoints[`${regionColors[i]}-${degTheta}`] = [];
         // const points = [
@@ -134,8 +136,8 @@ export class AppComponent implements OnInit {
           ]);
           // When to apply hTheta
           const diff = Vtheta - (Htheta - hTheta);
-          console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; ${hTheta}, ${Htheta}, ${Vtheta};
-            diff: ${diff}, d: ${d}, rSign: ${rSign}, z: ${zTerm}`);
+          // console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; ${hTheta}, ${Htheta}, ${Vtheta};
+          //   diff: ${diff}, d: ${d}, rSign: ${rSign}, z: ${zTerm}`);
           if ( Vtheta > diff ) {
             [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[hTheta], [Vtheta]]), this.eY([[hTheta], [Vtheta]]) );
             drawPoints[`${regionColors[i]}-${degTheta}`].push([
@@ -212,18 +214,18 @@ export class AppComponent implements OnInit {
       //   });
       // }
       const center = '#6495ED';
-      // if (col === center) {         // Center only
-      //   this.draw(points, col, label);
-      // }
+      if (col === center) {         // Center only
+        this.draw(points, col, label);
+      }
       const corners = [
         '#800000', // maroon
         '#808000', // olive
         '#00FF00', // lime
         '#E97451', // burnt scienna
       ];
-      // if (col === corners[0] || col  === corners[1] || col  === corners[2] ||  col === corners[3] ) {         // Center only
-      //   this.draw(points, col, label);
-      // }
+      if (col === corners[0] || col  === corners[1] || col  === corners[2] ||  col === corners[3] ) {         // Center only
+        this.draw(points, col, label);
+      }
       const sides = [
         '#FF00FF', // fusia
         '#CCCCFF', // purplish
