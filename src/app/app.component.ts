@@ -4,11 +4,17 @@ import * as d3 from 'd3';
 import * as math from 'mathjs';
 import * as utils from './utils';
 import { R, vf, regionColors } from './consts';
-import { ngfactoryFilePath } from '@angular/compiler/src/aot/util';
+import { ɵangular_packages_platform_browser_dynamic_platform_browser_dynamic_a } from '@angular/platform-browser-dynamic';
 
 const XI = 0;
 const YI = 1;
 const RADIUS = 5;
+
+enum DIMENSION {
+  X = 0,
+  Y = 1,
+  ALL = 2,
+}
 
 @Component({
   selector: 'app-root',
@@ -16,8 +22,6 @@ const RADIUS = 5;
   styleUrls: ['./app.component.css']
 })
 export class AppComponent implements OnInit {
-
-  title = 'demo2d';
 
   B1n1 = 0; B2n1 = 0;
   B1p1 = 1000; B2p1 = 1000;
@@ -35,10 +39,12 @@ export class AppComponent implements OnInit {
   // xl = 200; yl = 200; xr = this.B1p1 - 300; yr = this.B2p1 - 300;
   // dll = 0; dlr = -100; drr = 200; drl = -200;
 
-  xl = 300; yl = 200; xr = this.B1p1 - 200; yr = this.B2p1 - 300;
-  dll = -100; dlr = 200; drr = -200; drl = 0;
+  // xl = 300; yl = 200; xr = this.B1p1 - 200; yr = this.B2p1 - 300;
+  // dll = -100; dlr = 200; drr = -200; drl = 0;
 
-  // dll = -1; dlr = -2; drr = 1; drl = 2;
+  xl = 10; yl = 10; xr = this.B1p1 - 10; yr = this.B2p1 - 10;
+  dll = 0; dlr = 0; drr = 0; drl = 0;
+
   P: Array<Array<Array<number>>>;
   B: Array<Array<Array<number>>>;
   U: Array<Array<Array<number>>>;
@@ -47,6 +53,65 @@ export class AppComponent implements OnInit {
   constructor() { }
 
   ngOnInit(): void {
+    const nsteps = 1000;
+    // for (let i = 0; i <= nsteps; i++) {
+    //   this.calculateStateAndDraw(i, [10, 50]);
+
+    // }
+
+    let i = 0;                  //  set your counter to 1
+
+    const myLoop = () => {         //  create a loop function
+      setTimeout(() => {   //  call a 3s setTimeout when the loop is called
+
+        this.calculateStateAndDraw(i, [10, 50]);
+        i++;                    //  increment the counter
+        if (i <= nsteps) {           //  if the counter < 10, call the loop function
+          myLoop();             //  ..  again which will trigger another
+          }                       //  ..  setTimeout()
+        }, 1000);
+    };
+    myLoop();                   //  start the loop
+  }
+
+  updateState(a: math.matrix): void {
+    if (this.eX(a) === 0 && this.eY(a) === 0){
+      this.dlr = this.dlr + 1;  this.drr = this.drr + 1;
+      this.dll = this.dll + 1;  this.drl = this.drl + 1;
+      this.xl = this.xl + 1; this.xr = this.xr - 1;
+      this.yl = this.yl + 1; this.yr = this.yr - 1;
+
+      // Horizontal Middles
+    } else if (this.eX(a) === 0 && this.eY(a) === 1 ) {
+      this.yr = this.yr + 1;
+      this.dlr = this.dlr - 1;  this.drr = this.drr - 1;
+
+    } else if (this.eX(a) === 0 && this.eY(a) === -1 ) {
+      this.yl = this.yl - 1;
+      this.dll = this.dll - 1;  this.drl = this.drl - 1;
+
+      // Vertical Middles
+    } else if (this.eX(a) === 1 && this.eY(a) === 0 ) {
+      this.xr = this.xr + 1;
+      this.drl = this.drl - 1;  this.drr = this.drr - 1;
+
+    } else if (this.eX(a) === -1 && this.eY(a) === 0 ) {
+      this.xl = this.xr - 1;
+      this.dll = this.dll - 1;  this.dlr = this.dlr - 1;
+
+      // Corners
+    } else if (this.eX(a) === -1 && this.eY(a) === -1 ) {
+      this.dll = this.dll + 1;
+    } else if (this.eX(a) === 1 && this.eY(a) === -1 ) {
+      this.drl = this.drl + 1;
+    } else if (this.eX(a) === -1 && this.eY(a) === 1 ) {
+      this.dlr = this.dlr + 1;
+    } else if (this.eX(a) === 1 && this.eY(a) === 1 ) {
+      this.drr = this.drr + 1;
+    }
+  }
+
+  calculateStateAndDraw(curStep: number, [lowTs, highTs]: [number, number]): void {
     this.P = [
       [[this.xl, this.yl], [this.xr, this.yl]],
       [[this.xl, this.yr], [this.xr, this.yr]],
@@ -68,157 +133,44 @@ export class AppComponent implements OnInit {
 
     let drawPoints: { [color: string]: Array<Array<number>> } = {};
 
+    // Begin Calculations for each region
     R.forEach((a, i) => {
+
       const THETA = utils.angleSearch(a);
 
       THETA.forEach(theta => {
-        // Rotate and flip state vectors
-        const [xIndex, yIndex] = utils.rotIdXY(-1 * theta);
-        const Pp = utils.flip(this.P, a);
-        const Bp = utils.flip(this.B, a);
-        const Up = utils.flip(this.U, a);
-        const Dp = utils.flip(this.DELTA, a);
-        // Grab state points
-        const p = Pp[xIndex][yIndex];
-        const b = Bp[xIndex][yIndex];
-        const d = Dp[xIndex][yIndex]; // Just single number rather than x,y coordinate
-        const u = Up[xIndex][yIndex];
 
-        // Rotate points
-        const rp = math.multiply(utils.rot(-1 * theta), [[p[XI]], [p[YI]]]); // Extract column vector
-        const rb = math.multiply(utils.rot(-1 * theta), [[b[XI]], [b[YI]]]);
-        const ru = math.multiply(utils.rot(-1 * theta), [[u[XI]], [u[YI]]]);
-        const ra = math.multiply(utils.rot(-1 * theta), a);
-        const rO = math.multiply(utils.rot(-1 * theta), this.O());
-        // NOTE at this point (6/4/2021) flips, indexing, rotations, orientation of matrices have all been
-        // relatively well verified;
-        // console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; Dp: `, Dp);
+        const [hTheta, Htheta, Vtheta] = this.invariantRegionBounds(theta, a);
 
-        // NOTE: You can always to a case by case verification to match what's on your poster
-        //       (if a = axay && theta = q) => R(theta) = z
-        const rSign = math.min(
-          ru
-        );
-        const zTerm = (1 - math.abs(this.eY(ra))) * rSign ;
-        const hTheta = this.eX(rp) + this.eX(ra) * this.eX(rb) - this.eX(rO) * (1 - math.abs(this.eX(ra))) +
-          zTerm * d;
-        const Htheta = this.eX(rp) + this.eX(ra) * this.eX(rb) - this.eX(rO) * (1 - math.abs(this.eX(ra))) +
-          math.abs(this.eY(ra)) * this.eX(ru) * d;
-        const Vtheta = this.eY(rp) + this.eY(ra) * this.eY(rb) - this.eY(rO) * (1 - math.abs(this.eY(ra))) +
-          math.abs(this.eX(ra)) * this.eY(ru) * d;
-        const shift = 0; // RADIUS + 10;
-        const localOrigin = [[0], [0]];
-        // console.log('P:  ', Pp);
-        console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; h=${hTheta}, H=${Htheta}, V=${Vtheta};
-        rp=${utils.pprinta(rp)};  rO=${utils.pprinta(rO)}`);
         const degTheta = utils.truncateError(theta * 180 / math.pi).toFixed(1);
-        drawPoints[`${regionColors[i]}-${degTheta}`] = [];
-        // const points = [
-        //   localOrigin,
-        //   [[0], [Vtheta]],
-        // ];
 
-        // Needs to be negative/positive according to relationship of incrementing and absolute dimensions
-        // TODO: Maybe document this more
-        const incX = utils.truncateError(this.eX(math.multiply(utils.rot(theta), vf)));
-        const incY = utils.truncateError(this.eY(math.multiply(utils.rot(theta), vf)));
-
-        // console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)};  u: ${u}; rIdx: ${xIndex}, ${yIndex},
-        //  incX: ${incX}; incY: ${incY}`);
-
-        // Question is - Htheta and VTheta should be variably thought of as comprising x/y depending on theta
-        // NOTE: 4 values for each degree
-        if (true){ // `${incX}` === `${incY}`) { // theta = 0 || theta = 180
-          let [xAdder, yAdder] = this.invariantIncrement(theta, this.eX(localOrigin), this.eY(localOrigin));
-          drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            // this.tX(a) + incX * this.eX(localOrigin) + shift, this.tY(a) + incY * this.eY(localOrigin) + shift
-            this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
-          ]);
-          [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[0], [Vtheta]]), this.eY([[0], [Vtheta]]) );
-          drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            // this.tX(a) + incX * this.eX([[0], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[0], [Vtheta]]) + shift
-            this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
-          ]);
-          // When to apply hTheta
-          const diff = Vtheta - (Htheta - hTheta);
-          // console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; ${hTheta}, ${Htheta}, ${Vtheta};
-          //   diff: ${diff}, d: ${d}, rSign: ${rSign}, z: ${zTerm}`);
-          if ( Vtheta > diff ) {
-            [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[hTheta], [Vtheta]]), this.eY([[hTheta], [Vtheta]]) );
-            drawPoints[`${regionColors[i]}-${degTheta}`].push([
-              // this.tX(a) + incX * this.eX([[hTheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[hTheta], [Vtheta]]) + shift
-              this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
-            ]);
-            [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[Htheta], [diff]]), this.eY([[Htheta], [diff]]) );
-            drawPoints[`${regionColors[i]}-${degTheta}`].push([
-              // this.tX(a) + incX * this.eX([[Htheta], [diff]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [diff]]) + shift
-              this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
-            ]);
-          } else {
-            [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[Htheta], [Vtheta]]), this.eY([[Htheta], [Vtheta]]) );
-            drawPoints[`${regionColors[i]}-${degTheta}`].push([
-              // this.tX(a) + incX * this.eX([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [Vtheta]]) + shift
-              this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
-            ]);
-          }
-          [xAdder, yAdder] = this.invariantIncrement(theta, this.eX([[Htheta], [0]]), this.eY([[Htheta], [0]]) );
-          drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            // this.tX(a) + incX * this.eX([[Htheta], [0]]) + shift, this.tY(a) + incY * this.eY([[Htheta], [0]]) + shift
-            this.tX(a) + xAdder + shift, this.tY(a) + yAdder + shift
-          ]);
-        } else { // theta = 90 || theta = 270
-          // NOTE: Even without testing, still think we will need to flip these when our problem is not symmetrical
-          // tx and ty still fixed (and increment direction), but the actual increment amount flips dimensions
-          drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            this.tX(a) + incX * this.eY(localOrigin) + shift, this.tY(a) + incY * this.eX(localOrigin) + shift
-          ]);
-          drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            this.tX(a) + incX * this.eY([[0], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[0], [Vtheta]]) + shift
-          ]);
-          // When to apply hTheta (not the right condition for middle regions)
-          const diff = Vtheta - (Htheta - hTheta);
-          console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; ${hTheta}, ${Htheta}, ${Vtheta};
-            diff: ${diff}, d: ${d}, rSign: ${rSign}, z: ${zTerm}`);
-          if ( Vtheta > diff ) {
-            drawPoints[`${regionColors[i]}-${degTheta}`].push([
-              this.tX(a) + incX * this.eY([[hTheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[hTheta], [Vtheta]]) + shift
-            ]);
-            drawPoints[`${regionColors[i]}-${degTheta}`].push([
-              this.tX(a) + incX * this.eY([[Htheta], [diff]]) + shift, this.tY(a) + incY * this.eX([[Htheta], [diff]]) + shift
-            ]);
-          } else {
-            drawPoints[`${regionColors[i]}-${degTheta}`].push([
-              this.tX(a) + incX * this.eY([[Htheta], [Vtheta]]) + shift, this.tY(a) + incY * this.eX([[Htheta], [Vtheta]]) + shift
-            ]);
-          }
-          drawPoints[`${regionColors[i]}-${degTheta}`].push([
-            this.tX(a) + incX * this.eY([[Htheta], [0]]) + shift, this.tY(a) + incY * this.eX([[Htheta], [0]]) + shift
-          ]);
-        }
-
-        // Final point for closing the lines
-        drawPoints[`${regionColors[i]}-${degTheta}`].push([
-          this.tX(a) + incX * this.eY(localOrigin) + shift, this.tY(a) + incY * this.eX(localOrigin) + shift
-        ]);
+        drawPoints[`${regionColors[i]}-${degTheta}`] = this.arrangeBoundaryPoints(
+          theta, a, [hTheta, Htheta, Vtheta]
+        );
 
       }); // End THETA loop
+
+      if ( this.eX(a) === 0 && this.eY(a) === 0 ) {
+        this.updateState(a);
+      } else {
+        if (curStep < lowTs && curStep > highTs) {
+          this.updateState(a);
+        }
+      }
+      this.P = [
+        [[this.xl, this.yl], [this.xr, this.yl]],
+        [[this.xl, this.yr], [this.xr, this.yr]],
+      ];
     }); // End R/region loop
 
+    d3.select('svg').selectAll('*').remove();
+    // Flip all points so the axis is inituitive (NOTE: svg origin is top left => We want bottom left)
     drawPoints = this.flipPointsVertically(drawPoints);
-    // NOTE: There seems to be an issue around corner elements bleading into the center a bit which is to
-    // be expected due to the fact that we're not drawing precise bounds
+
+    // Draw with region guards on each color for easy off and on
     for (const [color, points] of Object.entries(drawPoints)) {
       const [col, label] = color.split('-');
-      // if (col === '#6495ED') {
 
-      //   points.forEach(element => {
-      //     this.renderPoint(element[0], element[1], col, '');
-      //   });
-      // } else {
-      //   points.forEach(element => {
-      //     this.renderPoint(element[0], element[1], col, label);
-      //   });
-      // }
       const center = '#6495ED';
       if (col === center) {         // Center only
         this.draw(points, col, label);
@@ -238,35 +190,127 @@ export class AppComponent implements OnInit {
         '#00FFFF', // aqua
         '#800080', // purple
       ];
-      if (col === sides[0] || col  === sides[1] || col  === sides[2] ||  col === sides[3] ) {         // Center only
-        // if (label === '90.0') {
+      if (col === sides[0] || col === sides[1] || col === sides[2] || col === sides[3]) {         // Center only
+
         this.draw(points, col, label);
-        // }
+
       }
 
     }
 
     this.drawAxis();
-    // // One way to think about this is to plot a polyline for each region; challenge is grouping regions from matrices
+  }
 
-    // // TODO: These numbers are actually what the algorithm would spit out
-    // const upper = 20;
-    // const right = 20;
+  // |[number, number] {
+  invariantIncrement(theta: number, [[xInc], [yInc]]: [[number], [number]], dimension: DIMENSION = DIMENSION.ALL): number {
+    const directionalIncrement = math.multiply(utils.rot(theta), [[xInc], [yInc]]);
 
-    // // TODO: This should be generalized - in case of square possible 2 of these points will be
-    // //       redundant, but you should verify
-    // const rll = [];
-    // rll.push([this.B[0][0][0], this.B2p1 - this.B[0][0][1]]);             // origin
-    // rll.push([this.B[0][0][0], this.B2p1 - upper]); // upper
-    // rll.push([this.P[0][0][0], this.B2p1 - upper]); // upper inner (note might not exist?)
-    // rll.push([right, this.B2p1 - upper + right - this.P[0][0][1]]); // right side bound upper
-    // rll.push([right, this.B2p1 - this.B[0][0][1]]); // right side lower bound
+    switch (dimension) {
+      // case (DIMENSION.ALL):
+      //   return [
+      //     utils.truncateError(this.eX(directionalIncrement)),
+      //     utils.truncateError(this.eY(directionalIncrement))
+      //   ];
+      case (DIMENSION.X):
+        return utils.truncateError(this.eX(directionalIncrement));
+      case (DIMENSION.Y):
+        return utils.truncateError(this.eY(directionalIncrement));
+    }
+  }
 
-    // rll.push([this.B[0][0][0], this.B2p1 - this.B[0][0][1]]); // To close the connection
-    // // TODO: Display the polyline
-    // this.draw(rll);
+  /**
+   * NOTE: We want to use these to draw a path line, so ordering matters
+   * @param theta - tiling angle
+   * @param bounds - 3 region invariant bounds
+   */
+  arrangeBoundaryPoints(theta: number, a: math.matrix, bounds: [number, number, number]): number[][] {
+    const shift = 0; // RADIUS + 10;
+    const localOrigin: [[number], [number]] = [[0], [0]];
 
-    // const rrl = [];
+    const [hTheta, Htheta, Vtheta] = bounds;
+    const points = [
+      [
+        this.tX(a) + this.invariantIncrement(theta, localOrigin, DIMENSION.X) + shift,
+        this.tY(a) + this.invariantIncrement(theta, localOrigin, DIMENSION.Y) + shift
+      ], [
+        this.tX(a) + this.invariantIncrement(theta, [[0], [Vtheta]], DIMENSION.X) + shift,
+        this.tY(a) + this.invariantIncrement(theta, [[0], [Vtheta]], DIMENSION.Y) + shift
+      ]
+    ];
+
+    // When to apply hTheta -- conditionally collect a box or pentagon depending on the sign of theta and the region
+    const diff = Vtheta - (Htheta - hTheta);
+    if ( Vtheta > diff ) {
+
+      points.push([
+        this.tX(a) + this.invariantIncrement(theta, [[hTheta], [Vtheta]], DIMENSION.X) + shift,
+        this.tY(a) + this.invariantIncrement(theta, [[hTheta], [Vtheta]], DIMENSION.Y) + shift
+      ]);
+
+      points.push([
+        this.tX(a) + this.invariantIncrement(theta, [[Htheta], [diff]], DIMENSION.X) + shift,
+        this.tY(a) + this.invariantIncrement(theta, [[Htheta], [diff]], DIMENSION.Y) + shift
+      ]);
+    } else {
+      points.push([
+        this.tX(a) + this.invariantIncrement(theta, [[Htheta], [Vtheta]], DIMENSION.X) + shift,
+        this.tY(a) + this.invariantIncrement(theta, [[Htheta], [Vtheta]], DIMENSION.Y) + shift
+      ]);
+    }
+
+    points.push([
+      this.tX(a) + this.invariantIncrement(theta, [[Htheta], [0]], DIMENSION.X) + shift,
+      this.tY(a) + this.invariantIncrement(theta, [[Htheta], [0]], DIMENSION.Y) + shift
+    ]);
+    points.push([
+      this.tX(a) + this.invariantIncrement(theta, localOrigin, DIMENSION.X) + shift,
+      this.tY(a) + this.invariantIncrement(theta, localOrigin, DIMENSION.Y) + shift
+    ]);
+
+    return points;
+  }
+
+  /**
+   * Global state required are P, B, U, DELTA
+   * @param theta - angle in [0,90,180,270]
+   * @param a - state vector
+   * @returns [hTheta, Htheta, Vtheta]
+   */
+  invariantRegionBounds(theta: number, a: math.matrix): [number, number, number] {
+    // Rotate and flip state vectors
+    const [xIndex, yIndex] = utils.rotIdXY(-1 * theta);
+    const Pp = utils.flip(this.P, a);
+    const Bp = utils.flip(this.B, a);
+    const Up = utils.flip(this.U, a);
+    const Dp = utils.flip(this.DELTA, a);
+
+    // Grab state points
+    const p = Pp[xIndex][yIndex];
+    const b = Bp[xIndex][yIndex];
+    const d = Dp[xIndex][yIndex]; // Just single number rather than x,y coordinate
+    const u = Up[xIndex][yIndex];
+
+    // Rotate points
+    const rp = math.multiply(utils.rot(-1 * theta), [[p[DIMENSION.X]], [p[DIMENSION.Y]]]); // Extract column vector
+    const rb = math.multiply(utils.rot(-1 * theta), [[b[DIMENSION.X]], [b[DIMENSION.Y]]]);
+    const ru = math.multiply(utils.rot(-1 * theta), [[u[DIMENSION.X]], [u[DIMENSION.Y]]]);
+    const ra = math.multiply(utils.rot(-1 * theta), a);
+    const rO = math.multiply(utils.rot(-1 * theta), this.O());
+
+    const rSign = math.min(
+      ru
+    );
+    const zTerm = (1 - math.abs(this.eY(ra))) * rSign ;
+    const hTheta = this.eX(rp) + this.eX(ra) * this.eX(rb) - this.eX(rO) * (1 - math.abs(this.eX(ra))) +
+      zTerm * d;
+    const Htheta = this.eX(rp) + this.eX(ra) * this.eX(rb) - this.eX(rO) * (1 - math.abs(this.eX(ra))) +
+      math.abs(this.eY(ra)) * this.eX(ru) * d;
+    const Vtheta = this.eY(rp) + this.eY(ra) * this.eY(rb) - this.eY(rO) * (1 - math.abs(this.eY(ra))) +
+      math.abs(this.eX(ra)) * this.eY(ru) * d;
+    console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; h=${hTheta}, H=${Htheta}, V=${Vtheta};
+      rp=${utils.pprinta(rp)};  rO=${utils.pprinta(rO)}`);
+
+    return [hTheta, Htheta, Vtheta];
   }
 
   flipPointsVertically(pointsByKey: {[key: string]: Array<Array<number>>}): {[key: string]: Array<Array<number>>} {
@@ -283,17 +327,6 @@ export class AppComponent implements OnInit {
       flippedPoints[key] = flipped;
     }
     return flippedPoints;
-  }
-
-  invariantIncrement(theta, xInc, yInc): [number, number] {
-    // const sign = math.multiply(utils.rot(theta), [[1], [1]]); // TODO: Correct in algorithm too
-    // const inc = math.multiply(utils.rot(-1 * theta), [[xInc], [yInc]]);
-    const directionalIncrement = math.multiply(utils.rot(theta), [[xInc], [yInc]]); // TODO: Correct in algorithm too
-
-    return [
-      utils.truncateError(this.eX(directionalIncrement)),
-      utils.truncateError(this.eY(directionalIncrement))
-    ];
   }
 
   // Return column vector
@@ -331,7 +364,7 @@ export class AppComponent implements OnInit {
   }
 
   drawAxis(): void {
-    // TODO: Maybe add gridlines
+    // TODO: Maybe add gridlines: https://bl.ocks.org/d3noob/c506ac45617cf9ed39337f99f8511218
     const margin = {top: 20, right: 20, bottom: 80, left: 80};   // clockwise as in CSS
     const scale = 1;
     const xScale = d3.scaleLinear()
@@ -349,7 +382,7 @@ export class AppComponent implements OnInit {
     g.append('g')
       .call(yAxis)
       .attr('stroke', 'black')
-      .attr('stroke-opacity', 0.2)
+      .attr('stroke-opacity', 0.3)
       .attr('stroke-width', 4)
       .attr('font-size', 16);
 
@@ -357,7 +390,7 @@ export class AppComponent implements OnInit {
       .attr('transform', 'translate(0,' + (this.B2p1 + 80) + ')')  // axis runs along lower part of graph
       .call(xAxis)
       .attr('stroke', 'black')
-      .attr('stroke-opacity', 0.2)
+      .attr('stroke-opacity', 0.3)
       .attr('stroke-width', 4)
       .attr('font-size', 16);
   }
@@ -423,20 +456,19 @@ export class AppComponent implements OnInit {
 
     // Find min/max, and midpoint for all the points
     // Then append text at that midpoint for the label
-    if (label !== '') {
-      const minX = math.min( points.map(p => p[0]) );
-      const maxX = math.max( points.map(p => p[0]) );
-      const minY = math.min( points.map(p => p[1]) );
-      const maxY = math.max( points.map(p => p[1]) );
+    // if (label !== '') {
+    //   const minX = math.min( points.map(p => p[0]) );
+    //   const maxX = math.max( points.map(p => p[0]) );
+    //   const minY = math.min( points.map(p => p[1]) );
+    //   const maxY = math.max( points.map(p => p[1]) );
 
-      d3.select('svg')
-      .append('text')
-      .attr('x', minX + (maxX - minX) / 2 )
-      .attr('y', minY + (maxY - minY) / 2 )
-      .text(
-        `\u03b8 = ${label}`
-      );
-
-    }
+    //   d3.select('svg')
+    //   .append('text')
+    //   .attr('x', minX + (maxX - minX) / 2 )
+    //   .attr('y', minY + (maxY - minY) / 2 )
+    //   .text(
+    //     `\u03b8 = ${label}`  // theta unicode
+    //   );
+    // }
   }
 }
