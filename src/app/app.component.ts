@@ -1,13 +1,11 @@
 import { Component, OnInit } from '@angular/core';
+import { FormGroup, FormControl, Validators } from '@angular/forms';
 
 import * as d3 from 'd3';
 import * as math from 'mathjs';
 import * as utils from './utils';
 import { R, vf, regionColors } from './consts';
-import { ɵangular_packages_platform_browser_dynamic_platform_browser_dynamic_a } from '@angular/platform-browser-dynamic';
 
-const XI = 0;
-const YI = 1;
 const RADIUS = 5;
 
 enum DIMENSION {
@@ -50,28 +48,59 @@ export class AppComponent implements OnInit {
   U: Array<Array<Array<number>>>;
   DELTA: Array<Array<number>>;
 
+  currentStep = 0;
+  priorSteps = 0;
+
+  controls = new FormGroup({
+    interrupts: new FormGroup({
+      leftSteps: new FormControl(100, [Validators.min(0)]),
+      rightSteps: new FormControl(100, [Validators.min(0)]),
+      topSteps: new FormControl(100, [Validators.min(0)]),
+      bottomSteps: new FormControl(100, [Validators.min(0)]),
+    }),
+    totalSteps: new FormControl(1, [Validators.required, Validators.min(1)])
+  });
+
   constructor() { }
 
   ngOnInit(): void {
-    const nsteps = 1000;
-    // for (let i = 0; i <= nsteps; i++) {
-    //   this.calculateStateAndDraw(i, [10, 50]);
+    console.log(this.controls);
+    this.step();
+  }
 
-    // }
+  reset(): void {
+    // Reset form values in addition to initializing the state
+    this.xl = 1; this.yl = 1; this.xr = this.B1p1 - 1; this.yr = this.B2p1 - 1;
+    this.dll = 0; this.dlr = 0; this.drr = 0; this.drl = 0;
+    this.controls.setValue({
+      interrupts: {
+        leftSteps: 0,
+        rightSteps: 0,
+        topSteps: 0,
+        bottomSteps: 0
+      },
+      totalSteps: 1000
+    });
+    this.currentStep = 0;
+    this.priorSteps = 0;
+  }
 
-    let i = 0;                  //  set your counter to 1
-
-    const myLoop = () => {         //  create a loop function
-      setTimeout(() => {   //  call a 3s setTimeout when the loop is called
-
-        this.calculateStateAndDraw(i, [10, 50]);
-        i++;                    //  increment the counter
-        if (i <= nsteps) {           //  if the counter < 10, call the loop function
-          myLoop();             //  ..  again which will trigger another
-          }                       //  ..  setTimeout()
-        }, 1000);
+  step(): void {
+    this.priorSteps = this.currentStep;
+    const nsteps: number = this.controls.get('totalSteps').value + this.currentStep;
+    const stateLoop = () => {
+      setTimeout(() => {
+          this.calculateStateAndDraw(this.currentStep, [10, 50]);
+          this.currentStep++;
+          if (this.currentStep <= nsteps ) {
+            stateLoop();
+          }
+        },
+        1000 // 1 second timeout
+      );
     };
-    myLoop();                   //  start the loop
+    stateLoop();
+
   }
 
   updateState(a: math.matrix): void {
@@ -111,7 +140,39 @@ export class AppComponent implements OnInit {
     }
   }
 
-  calculateStateAndDraw(curStep: number, [lowTs, highTs]: [number, number]): void {
+  conditionallyUpdateState(a: math.matrix): void {
+    const leftDelay = this.controls.get('interrupts.leftSteps').value;
+    const rightDelay = this.controls.get('interrupts.rightSteps').value;
+    const topDelay = this.controls.get('interrupts.topSteps').value;
+    const bottomDelay = this.controls.get('interrupts.bottomSteps').value;
+
+    const isLeft = (this.currentStep -  this.priorSteps)  < leftDelay;
+    const isRight = (this.currentStep -  this.priorSteps)  < rightDelay;
+    const isTop = (this.currentStep -  this.priorSteps)  < topDelay;
+    const isBottom = (this.currentStep -  this.priorSteps)  < bottomDelay;
+
+    if ( this.eX(a) === -1  && isLeft) {
+      console.log(`DELAY ${utils.pprinta(a)}`);
+    } else if ( this.eX(a) === 1  && isRight ) {
+      console.log(`DELAY ${utils.pprinta(a)}`);
+
+    } else if ( this.eY(a) === 1  && isTop ) {
+      console.log(`DELAY ${utils.pprinta(a)}`);
+
+    } else if ( this.eY(a) === -1  && isBottom ) {
+      console.log(`DELAY ${utils.pprinta(a)}`);
+
+    } else {
+      this.updateState(a);
+    }
+  }
+
+  /**
+   * TODO: remove unused params
+   * @param currentStep - current step being run in the outer simulation
+   * @param [lowTs, highTs] - likely deprecated
+   */
+  calculateStateAndDraw(currentStep: number, [lowTs, highTs]: [number, number]): void {
     this.P = [
       [[this.xl, this.yl], [this.xr, this.yl]],
       [[this.xl, this.yr], [this.xr, this.yr]],
@@ -150,13 +211,9 @@ export class AppComponent implements OnInit {
 
       }); // End THETA loop
 
-      if ( this.eX(a) === 0 && this.eY(a) === 0 ) {
-        this.updateState(a);
-      } else {
-        if (curStep < lowTs && curStep > highTs) {
-          this.updateState(a);
-        }
-      }
+      // Conditionally update state according to formConrols interrupt settings, etc
+      this.conditionallyUpdateState(a);
+
       this.P = [
         [[this.xl, this.yl], [this.xr, this.yl]],
         [[this.xl, this.yr], [this.xr, this.yr]],

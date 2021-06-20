@@ -1,3 +1,41 @@
-<div id="main">
-  <svg viewBox="0 0 1500 1500"></svg>
-</div>
+<mat-grid-list cols="4" rowHeight="800">
+  <mat-grid-tile [colspan]="3">
+
+    <svg viewBox="0 0 1500 1500"></svg>
+
+  </mat-grid-tile>
+  <mat-grid-tile [colspan]="1">
+
+    <div [formGroup]="controls">
+      <div class="example-button-row">
+
+        <button mat-raised-button color="primary" (click)="step()">Run</button>
+        <button mat-raised-button color="accent" (click)="reset()">Reset</button>
+      </div>
+      <br>
+      <br>
+
+      <label for="totalSteps">Enter Total Steps</label><br>
+      <input type="number" id="totalSteps" formControlName="totalSteps">
+
+      <div formGroupName="interrupts">
+
+        <label for="leftSteps">Enter Left Delay</label><br>
+        <input type="number" id="leftSteps" formControlName="leftSteps"><br>
+
+        <label for="rightSteps">Enter Right Delay</label><br>
+        <input type="number" id="rightSteps" formControlName="rightSteps"><br>
+
+        <label for="topSteps">Enter Top Delay</label><br>
+        <input type="number" id="topSteps" formControlName="topSteps"><br>
+
+        <label for="bottomSteps">Enter Bottom Delay</label><br>
+        <input type="number" id="bottomSteps" formControlName="bottomSteps">
+
+      </div>
+
+    </div>
+
+  </mat-grid-tile>
+
+</mat-grid-list>
