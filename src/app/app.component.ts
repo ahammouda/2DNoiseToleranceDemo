@@ -125,7 +125,7 @@ export class AppComponent implements OnInit {
       this.drl = this.drl - 1;  this.drr = this.drr - 1;
 
     } else if (this.eX(a) === -1 && this.eY(a) === 0 ) {
-      this.xl = this.xr - 1;
+      this.xl = this.xl - 1;
       this.dll = this.dll - 1;  this.dlr = this.dlr - 1;
 
       // Corners
@@ -214,9 +214,14 @@ export class AppComponent implements OnInit {
       // Conditionally update state according to formConrols interrupt settings, etc
       this.conditionallyUpdateState(a);
 
+      // RESET: NOTE - shouldn't be necessary depending on the reference logic of variables
       this.P = [
         [[this.xl, this.yl], [this.xr, this.yl]],
         [[this.xl, this.yr], [this.xr, this.yr]],
+      ];
+      this.DELTA = [
+        [this.dll, this.drl],
+        [this.dlr, this.drr],
       ];
     }); // End R/region loop
 
