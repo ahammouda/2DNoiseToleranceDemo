@@ -14,6 +14,9 @@ enum DIMENSION {
   ALL = 2,
 }
 
+const VERTICAL_OFFSET = 200; // Padding to keep the visualization from getting cut off
+const HORIZONTAL_OFFSET = 80; // Padding to keep the visualization from getting cut off
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -383,7 +386,7 @@ export class AppComponent implements OnInit {
       const flipped = [];
       for (let i = points.length - 1; i >= 0; i--) {
         flipped.push(
-          [points[i][0] + 80, this.B2p1 - points[i][1] + 100]  // TODO: Get rid of hardcoded variables
+          [points[i][0] + HORIZONTAL_OFFSET, this.B2p1 - points[i][1] + VERTICAL_OFFSET]  // TODO: Get rid of hardcoded variables
         );
       }
       flippedPoints[key] = flipped;
@@ -430,12 +433,12 @@ export class AppComponent implements OnInit {
     const margin = {top: 20, right: 20, bottom: 80, left: 80};   // clockwise as in CSS
     const scale = 1;
     const xScale = d3.scaleLinear()
-      .domain([this.B1n1, this.B1p1 + 80])
-      .range([this.B1n1 * scale, this.B1p1 + 80]);
+      .domain([this.B1n1, this.B1p1 + HORIZONTAL_OFFSET])
+      .range([this.B1n1 * scale, this.B1p1 + HORIZONTAL_OFFSET]);
 
     const yScale = d3.scaleLinear()
-      .domain([this.B2n1, this.B2p1 + 80])
-      .range([this.B2p1 * scale + 80, this.B2n1 * scale]); // flipped y-range to get ticks going the right way
+      .domain([this.B2n1, this.B2p1 + VERTICAL_OFFSET - 20])
+      .range([this.B2p1 * scale + VERTICAL_OFFSET - 20, this.B2n1 * scale]); // flipped y-range to get ticks going the right way
 
     const xAxis = d3.axisBottom(xScale);
     const yAxis = d3.axisLeft(yScale);
@@ -449,7 +452,7 @@ export class AppComponent implements OnInit {
       .attr('font-size', 16);
 
     g.append('g')                            // render the X axis in the inner plot area
-      .attr('transform', 'translate(0,' + (this.B2p1 + 80) + ')')  // axis runs along lower part of graph
+      .attr('transform', 'translate(0,' + (this.B2p1 + VERTICAL_OFFSET - 20) + ')')  // axis runs along lower part of graph
       .call(xAxis)
       .attr('stroke', 'black')
       .attr('stroke-opacity', 0.3)
