@@ -4,7 +4,7 @@ import { FormGroup, FormControl, Validators } from '@angular/forms';
 import * as d3 from 'd3';
 import * as math from 'mathjs';
 import * as utils from './utils';
-import { R, vf, regionColors } from './consts';
+import { R, vf, regionColors, regionByColor, colorByRegion } from './consts';
 
 const RADIUS = 5;
 
@@ -82,7 +82,7 @@ export class AppComponent implements OnInit {
         topSteps: 0,
         bottomSteps: 0
       },
-      totalSteps: 1000
+      totalSteps: 50
     });
     this.currentStep = 0;
     this.priorSteps = 0;
@@ -93,7 +93,7 @@ export class AppComponent implements OnInit {
     const nsteps: number = this.controls.get('totalSteps').value + this.currentStep;
     const stateLoop = () => {
       setTimeout(() => {
-          this.calculateStateAndDraw(this.currentStep, [10, 50]);
+          this.calculateStateAndDraw();
           this.currentStep++;
           if (this.currentStep <= nsteps ) {
             stateLoop();
@@ -143,6 +143,33 @@ export class AppComponent implements OnInit {
     }
   }
 
+  ts(a: math.matrix, delta: number): number {
+    return this.currentStep +
+      this.eX(a) * this.xd(a) + this.eY(a) * this.yd(a)
+      - this.eX(a) - this.eY(a)
+      + math.abs(this.eX(a)) * math.abs(this.eY(a)) * delta;
+  }
+
+  yd(a: math.matrix): number {
+    if (this.eY(a) === -1) {
+      return this.yl;
+    } else if (this.eY(a) === 1) {
+      return this.yr;
+    } else {
+      return 0;
+    }
+  }
+
+  xd(a: math.matrix): number {
+    if (this.eX(a) === -1) {
+      return this.xl;
+    } else if (this.eX(a) === 1) {
+      return this.xr;
+    } else {
+      return 0;
+    }
+  }
+
   conditionallyUpdateState(a: math.matrix): void {
     const leftDelay = this.controls.get('interrupts.leftSteps').value;
     const rightDelay = this.controls.get('interrupts.rightSteps').value;
@@ -170,12 +197,44 @@ export class AppComponent implements OnInit {
     }
   }
 
+  stepRegion(a: math.matrix): { [color: string]: Array<Array<number>> }{
+    const drawPoints: { [color: string]: Array<Array<number>> } = {};
+
+    const THETA = utils.angleSearch(a);
+
+    let validUpdate = true;
+
+    THETA.forEach(theta => {
+
+      const [hTheta, Htheta, Vtheta] = this.invariantRegionBounds(theta, a);
+
+      if (Htheta > 0 && Vtheta > 0) {
+        const degTheta = utils.truncateError(theta * 180 / math.pi).toFixed(1);
+        const color = colorByRegion[
+          `!${this.eX(a)}${this.eY(a)}`
+        ];
+        drawPoints[`${color}-${degTheta}`] = this.arrangeBoundaryPoints(
+          theta, a, [hTheta, Htheta, Vtheta]
+        );
+      } else {
+        validUpdate = false;
+      }
+
+    }); // End THETA loop
+
+    if (validUpdate) {
+      // Conditionally update state according to formConrols interrupt settings, etc
+      this.conditionallyUpdateState(a);
+    }
+    return drawPoints;
+  }
+
   /**
    * TODO: remove unused params
    * @param currentStep - current step being run in the outer simulation
    * @param [lowTs, highTs] - likely deprecated
    */
-  calculateStateAndDraw(currentStep: number, [lowTs, highTs]: [number, number]): void {
+  calculateStateAndDraw(): void {
     this.P = [
       [[this.xl, this.yl], [this.xr, this.yl]],
       [[this.xl, this.yr], [this.xr, this.yr]],
@@ -200,32 +259,20 @@ export class AppComponent implements OnInit {
     // Begin Calculations for each region
     R.forEach((a, i) => {
 
-      const THETA = utils.angleSearch(a);
-
-      THETA.forEach(theta => {
-
-        const [hTheta, Htheta, Vtheta] = this.invariantRegionBounds(theta, a);
-
-        const degTheta = utils.truncateError(theta * 180 / math.pi).toFixed(1);
-
-        drawPoints[`${regionColors[i]}-${degTheta}`] = this.arrangeBoundaryPoints(
-          theta, a, [hTheta, Htheta, Vtheta]
-        );
-
-      }); // End THETA loop
-
-      // Conditionally update state according to formConrols interrupt settings, etc
-      this.conditionallyUpdateState(a);
-
+      const pointsByLabel = this.stepRegion(a);
+      // tslint:disable-next-line:forin
+      for (const key in pointsByLabel) {
+        drawPoints[key] = pointsByLabel[key];
+      }
       // RESET: NOTE - shouldn't be necessary depending on the reference logic of variables
-      this.P = [
-        [[this.xl, this.yl], [this.xr, this.yl]],
-        [[this.xl, this.yr], [this.xr, this.yr]],
-      ];
-      this.DELTA = [
-        [this.dll, this.drl],
-        [this.dlr, this.drr],
-      ];
+      // this.P = [
+      //   [[this.xl, this.yl], [this.xr, this.yl]],
+      //   [[this.xl, this.yr], [this.xr, this.yr]],
+      // ];
+      // this.DELTA = [
+      //   [this.dll, this.drl],
+      //   [this.dlr, this.drr],
+      // ];
     }); // End R/region loop
 
     d3.select('svg').selectAll('*').remove();
@@ -517,7 +564,11 @@ export class AppComponent implements OnInit {
       .attr('stroke', 'black')
       .attr('stroke-width', 4)
       .attr('fill', color)
-      .attr('fill-opacity', 0.5);
+      .attr('fill-opacity', 0.5)
+      .on('mouseover', () => {
+        this.stepRegion(regionByColor[color]);
+        this.calculateStateAndDraw();
+      });
 
     // Find min/max, and midpoint for all the points
     // Then append text at that midpoint for the label

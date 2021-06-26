@@ -1,6 +1,7 @@
 import * as math from 'mathjs';
 import {R, vf, epsilon} from './consts';
 
+
 /**
  * Designed for sine/cosine results so as to get clean multipliers and account for rounding error
  * but can be used very generally if you add another 2 params for upper/lower bounds
