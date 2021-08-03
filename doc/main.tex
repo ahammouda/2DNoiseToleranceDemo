@@ -1,0 +1,134 @@
+\documentclass{article}
+
+\usepackage[margin=0.3in]{geometry}
+
+\usepackage[ruled,lined,vlined,linesnumbered,noresetcount]{algorithm2e}
+\renewcommand{\algorithmcfname}{ALGORITHM}
+\SetAlFnt{\small}
+\SetAlCapFnt{\small}
+\SetAlCapNameFnt{\small}
+\SetAlCapHSkip{0pt}
+\IncMargin{-\parindent}
+
+%\usepackage{siunitx}
+\usepackage{amssymb,amsmath,amsthm}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+
+%\theoremstyle{myrule}
+%\newtheorem{rule}{Rule}[section]
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{conjecture}{Conjecture}[section]
+
+% \usepackage{ulem}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{verbatim}
+% \usepackage{subfigure}
+%\usepackage{wrapfig}
+
+\usepackage[table]{xcolor}
+
+\usepackage{bookmark}
+\usepackage{textcomp}
+%\usepackage{cite}
+%\usepackage{epstopdf}
+%\usepackage{amssymb}
+%\usepackage{amsmath}
+\usepackage{mathtools}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+%\usepackage{listings}
+%\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+%\usepackage[sorting=none]{biblatex}
+%\usepackage[numbers,sort&compress]{natbib}
+%\usepackage{precalc}
+%\newcommand{\norm}[1]{\left|\left|#1\right|\right|}
+%\usepackage{lscape}
+
+%% Figures Path
+\graphicspath{{figures/}}
+\usepackage{color}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linktoc=all,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%  BEGINNING DOCUMENT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+%
+\title{Parallel 2D Noise Tolerant Stencil Algorithm}
+
+%\title{Asynchronous Bottlenecks of Structured Networks}
+%
+%\title{Mapping the Limits of BSP:  Bounding the Performance Nearest-Neighbor Synchronizing
+%  Stencils Under Arbitrary Process Runtime Nonuniformity with Asynchronous Noise}
+%
+%\author{Adam Hammouda and Stephen Siegel and Andrew Siegel}
+%
+%%%% list of authors for the TOC (use if author list has to be modified)
+%\tocauthor{Adam Hammouda, Andrew Siegel, and Stephen Siegel}
+
+%\institute{Argonne National Laboratory Mathematics and Computer Sciences Division,
+%  Lemont, IL 60439, USA\\
+%\email{ahammouda@cs.uchicago.edu,siegela@mcs.anl.gov},\\
+%\texttt{http://cesar.mcs.anl.gov/}
+%\and
+%University of Delaware Verified Software Laboratory, Newark, DE 19716, USA\\
+%\email{siegel@udel.edu}\\
+%\texttt{http://vsl.cis.udel.edu/index.html}
+%}
+
+%\maketitle
+
+%\begin{abstract}
+
+%\end{abstract}
+
+
+% Algorithm
+\input{algo.tex}
+
+\section{Acknowledgements}
+
+This research used resources of the Argonne Leadership Computing
+Facility at Argonne National Laboratory, which
+is supported by the Office of Science of the U.S.
+Department of Energy under contract DE-AC02-06CH11357.
+
+This research used the University of Delaware's \emph{Chimera}
+computer, funded by U.S. National Science Foundation award CNS-0958512.
+S.F. Siegel was supported by NSF award CCF-0953210.
+
+%\bibliographystyle{plain}
+%\bibliography{references}
+
+\section{License}
+
+This manuscript has been created by UChicago Argonne, LLC, Operator of %submitted
+Argonne National Laboratory (``Argonne'').  Argonne, a U.S. Department of Energy
+Office of Science laboratory, is operated under Contract No. DE-AC02-06CH11357.
+The U.S. Government retains for itself, and others acting on its behalf, a
+paid-up nonexclusive, irrevocable worldwide license in said article to reproduce,
+prepare derivative works, distribute copies to the public, and perform publicly
+and display publicly, by or on behalf of the Government.
+
+\end{document}
