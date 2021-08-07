@@ -1,3 +1,6 @@
 figures/*.pdf
 *.log
 *.aux
+main.fdb_latexmk
+main.fls
+main.synctex.gz
