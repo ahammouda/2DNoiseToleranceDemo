@@ -1,4 +1,4 @@
-% algorith2e macros:
+% algorithm2e macros:
 \SetKwFor{Procedure}{procedure}{is}{end procedure}
 \SetKwInOut{Requires}{Requires} % precondition (assumed)
 \SetKwInOut{Ensures}{Ensures} % postcondition (guaranteed)
@@ -49,10 +49,10 @@
 \section{Basic Terminology And Motivation}\label{sec:problem_statement}
 % Stencil DEF as dependency structure
 The solution of partial differential equations (PDEs)
-is a well known problem in computing addressed by numerous
+is a well known problem in computing addressed by many
 numerical methods.
 To solve a PDE numerically, a method must choose a discrete
-form of the equation.
+form of its equation.
 A key characteristic of the discrete form chosen is its
  {\it stencil}.
 %   characterizes the discretization used for the numerical
@@ -62,8 +62,8 @@ A stencil
 the execution of the method.  The dynamics
 of this dependency structure is the topic of this section.
 These dynamics further define a central performance bottleneck in
-solving PDEs on parallel processors which is the motivation of
- the algorithm
+solving PDEs on parallel processors which is the motivation
+for the algorithm
 presented in the sections that follow.
 
 Figure~\ref{fig:basic} illustrates an example of a {\it stencil}
@@ -92,8 +92,8 @@ center circle is the spatially dependent value of the PDE at a given point in
   \includegraphics[width=0.5\textwidth]{timeStepDependencies.eps}
   \caption{An illustration of grid cell timesteps, and their
   relationship to
-  stencil dependencies.  In cell $(B_x^1,B_y^1)$ dependencies are met, and a
-  valid update of the cell can be performed.  In cell $(B_x^1,1)$ the opposite
+  stencil dependencies.  In cell $(B_x^1,B_y^1)$ dependencies are
+  valid and an update of the cell can be performed.  In cell $(B_x^1,1)$ the opposite
   is true.  Transparent blue and red circles are overlaid respectively
   for valid and invalid dependencies.}
   \label{fig:timestep}
@@ -111,20 +111,20 @@ When a cell has neighbors above, below, left, and right of it which contain
 values computed from the same timestep, we'll say the cell's
 dependencies are {\it valid} at a given point in time.  When any one of its
 neighbors does not contain a value from the same timestep, then its
-depencies are {\it invalid}.  An example of a cell with
+dependencies are {\it invalid}.  An example of a cell with
 invalid dependencies is given in
 cell $(B_x^1,1)$ in figure~\ref{fig:timestep}, where the value of the PDE
 is only completed up to the 2nd timestep, and it's neighboring cells
 contain values from different timesteps.  Given
 that timesteps increment for every update,
 a cell with {\it valid} dependencies in
-one timestep may aquire {\it invalid}
+one timestep may acquire {\it invalid}
 dependencies immediately following an update, and any
 numerical solver is constrained by this.
 
-% Implications of dep structure for multi-proc
+% Implications of dependency structure for multi-proc
 The constraints resulting from the stencil's dependency structure
-further constrains the efficacy of a
+further effects the performance of a
 parallelization strategy for computing a 2D PDE.  A typical
 strategy starts with the definition of a global 2D area over which
 a PDE is being solved, followed by a subdivision of that area
@@ -143,26 +143,23 @@ held by the adjacent processes.  To give a precise example in
 figure~\ref{fig:basic},
 cells $(1,1) - (B_x^1,1)$ of process 1 need to be
 reflected in cells $(1,B_y^1+1) - (B_x^1, B_y^1+1)$ on process 4 in order
-for process 4 to compute cells $(1,B_y^1) - (B_x^1, B_y^1)$.  The analagous
+for process 4 to compute cells $(1,B_y^1) - (B_x^1, B_y^1)$.  The analogous
 constraint is true for the other border/ghost cell pairs for each of the
 processes.
 This data sharing between processes defines an additional process level
  dependency that is a direct
   result of the cell level dependency structure introduced by a 5 point
-  stencil.  It requires that each processes' border
-  region must have constantly updated values
-  in their ghost regions from the corresponding
- border regions of the nearest process along each dimension of its grid.
+  stencil.
 
  % Classification of grid regions according to interprocess dependency
 This dependency structure between processes is known as a
 {\it nearest neighbor} dependency structure, and divides
-each processes' local grid into 9 distinct {\it regions} depending on
+each process' local grid into 9 distinct {\it regions} depending on
 their degree of interprocess dependence.  Continuing to use process 4
 in figure~\ref{fig:basic} as an example, the
 regions are the green
-shaded {\it interior region}, and then 8 blue shaded border regions.  The interior region depends only on border
-regions, and is therefore relatively independent of neighbor processes (that independence will be later quantified).
+shaded {\it interior region}, and the 8 blue shaded border regions.  The interior region depends only on border
+regions, and is therefore relatively independent of neighbor processes.
 The border regions have 2 types of dependence.  The first type depends on only one neighbor process.  This is
 given by cell ranges on the 4 sides of the 2D grid: $(2,1) - (B_x^1 - 1, 1)$, $(1,2) - (1,B_y^1 - 1)$,
 $(2,B_y^1) - (B_x^1 - 1, B_y^1)$, and $(B_x^1,2) - (B_x^1,B_y^1 - 1)$.  In these ranges only the
@@ -179,21 +176,14 @@ with each neighbor process .
 If synchronizations are expensive this creates a performance bottleneck, and
 it becomes beneficial
 to develop strategies to relax these synchronization requirements.
-In order to do so while maintaining
-valid stencil dependencies reqires relaxing the boundaries of the 9 classically
+In order to maintain
+valid stencil dependencies while relaxing synchronizations
+requires relaxing the boundaries of the 9 classically
 static regions of a 2D grid
 on each process.  In the next section we'll describe how this is done, before
 developing a concise approach for performing region updates
 that guarantee valid cell level dependencies.
-
-% TODO: Add diagram from topc paper of the time dimension of dependencies, and put them somewhere
-% (or a 2D timelapse of halos)
 ْ
-% The final dimension of the dependency structure is time, and can be quantified per grid cell, per process region,
-% or per global stencil computation.  We say that a grid cell completes its {\it timestep} when it updates
-% the physical property being modeled in the grid cell using the the neighbor cells it depends (i.e. top right
-% of process 4 in figure~\ref{fig:basic}).
-
 \section{State Variables For Region Decomposition}\label{sec:state}
 
 \begin{figure}[t]
@@ -214,14 +204,26 @@ that guarantee valid cell level dependencies.
     \end{subfigure}
   %\includegraphics[width=0.4\textwidth]{region_map.pdf}
   \caption{(\ref{fig:state_labels}) An illustration of state labels that allow each of the 9 regions to relax their
-  boundaries.  (\ref{fig:region_vectors}) Shorthand labels for each region, and for corresponding area vectors.}
+  boundaries.  (\ref{fig:region_vectors}) Shorthand labels for each region, also known as area vectors.}
   \label{fig:local_decomposition}
 \end{figure}
 
 Figure~\ref{fig:region_vectors} illustrates a concise labeling of
-each of the 9 regions described above, whose boundaries have been relaxed to arbitrary positions.
-  Figure~\ref{fig:state_labels} illustrates the minimal set of variables needed to relax region boundaries
-for a single process, and delimits the regions they collectively form.
+each of the 9 regions described above, whose boundaries have been
+relaxed to arbitrary positions.  The regions correspond to our
+prior explanations as follows:
+\begin{itemize}
+  \item $00$ is the interior region with no interprocess dependencies.
+  \item $\{^-10,10,01,0^-1 \}$ is the set of border regions with single process dependencies.
+  \item $\{^-1^-1,1^-1,11,^-11 \}$ is the set of corner regions with 2 process dependencies.
+\end{itemize}
+Region labels are also referred to as region vectors throughout this
+paper, and the general form used above, $a_xa_y$, is
+shorthand for the vector $[a_x,\; a_y]^T = \mathbf{a}^T$.
+
+Figure~\ref{fig:state_labels} illustrates the minimal set of
+variables needed to relax the boundaries of the regions
+just described.
 With these dynamic variables of state, each process has enough information
 to ensure the grid cells
 of each region have valid dependencies\footnote{
@@ -229,30 +231,30 @@ of each region have valid dependencies\footnote{
 }.
 This is because each state variable captures information about the timestep,
 and therefore dependency information of each region.  To illustrate this point,
-consider the 'interior region', $00$, which
+consider the interior region, $00$, which
 has no explicit dependencies.  Given that the number of grid cells in $00$
 dominates the number of grid cells in the border region, we're
 typically safe to continue shrinking this region
 and updating it's grid cells regardless of whether neighbor
-process data has been aquired for border updates.
+process data has been acquired for border updates.
 Therefore, we define the maximal timestep possible as being
 the uniform timestep reached by the interior most
 region, $00$,
 
 \begin{equation}
-  \tm \equiv \text{The number of updates completed (timestep) for each cell in region $00$}.
+  \tm \equiv \text{The uniform timestep of each cell in region $00$}.
 \end{equation}
 From this definition, every region's timestep can be further defined relative to $\tm$ and the state
 variables drawn in figure~\ref{fig:state_labels}.  For example, variable $x_{^-1}$ is the difference in the
  number of timesteps completed by the interior region and the number of timesteps completed at the leftmost edge
- of region $-10$.  $x_{^-1}$ is also equal to the number of timesteps since the last time a ghost cell was received along
+ of region $^-10$.  $x_{^-1}$ is also equal to the number of timesteps since the last time a ghost cell was received along
  that border.  Further, $\delta_{^-1^-1}$ can be thought of as the number of times
 region $^-10$ or region $0^-1$ have been updated without a corresponding update to region $^-1^-1$, making $\delta_{^-1^-1}$
 negative as illustrated.  Figure~\ref{fig:state_labels} also illustrates a positive
  $\delta_{1^-1}$ term.  This can occur when $00$ has updated several times without
-any updates from regions $0^-1$, $10$, or $1^-1$.  Because $\delta$ can be both positive or negative
-it's intuition is not as straightforward, but it's function as a bookkeeping term is just as important, and
-is summarized analytically along with the rest of the illustrated variables of state as
+any updates from regions $0^-1$ and $10$.  These intuitions are
+summarized analytically for all the dynamic variables illustrated
+in figure~\ref{fig:state_labels} as
 \begin{equation}
   t(a_xa_y,i_x,i_y) = \tm +
   a_x \cdot x_{a_x} + a_y \cdot y_{a_y} -
@@ -263,40 +265,23 @@ is summarized analytically along with the rest of the illustrated variables of s
 where $t(a_xa_y,i_x,i_y)$ provides the timestep for region $a_xa_y$ in grid cell $(i_x,i_y)$.
 
 The only variables equation~\eqref{eq:ts} doesn't capture from figure~\ref{fig:state_labels} are the
-static boudary terms, denoted by the $B$ variables.  Each $B^{-1}$ term denotes a lower bound, and $B^1$
+static boundary terms, denoted by the $B$ variables.  Each $B^{-1}$ term denotes a lower bound, and $B^1$
  term
 denotes an upper bound for the grid cells along dimensions $x$ and $y$ which are
 correspondingly subscripted $B_x$ and $B_y$.
-  These terms will represent array indexing for a process, so $B^-1 = 0$ and $B^1 > 0$
+  These terms will represent array indexing for a process, so $B^{-1} = 0$ and $B^1 > 0$
   for dimensions $x$ and $y$.
-
-  While we've defined the state we must track for each region,
-we have not yet shown how the state evolves to account for delays in synchronization.
-The details will be explored more
-  below, but for now consider that algorithm~\ref{alg:state_updates_basic} will
- be run for each region, whenever every cell in that region has
- undergone an update.
- % TODO: These lines mark the cases, not the updates - be clearer
- Line~\ref{ln:00} contracts interior region's boundaries
- while simultaneously expanding the boundaries of each adjacent region.
- Lines~\ref{ln:n1n1}--~\ref{ln:n11} performs the same operation for each corner
- region, and lines~\ref{ln:n10}--~\ref{ln:01} does the same for the remainder of
- each region.  Note further that if every region update occurs within a
- timestep, the region boundaries will all return to where they have started with
- effectively no change in boundaries:  For every decrement or increment of a
- variable of state, there is a corresponding increment or decrement
- in the opposite direction.
 
 \begin{algorithm}[h]
   \setcounter{AlgoLine}{0}
   \Procedure{$update\_state(a_xa_y)$}{
-    \When{$a_xa_y = 00$}{ \label{ln:00}
-      $x_{^-1} = x_{^-1} + 1$; $\;\; y_{^-1} = y_{^-1} + 1$\;
+    \When{$a_xa_y = 00$}{
+      $x_{^-1} = x_{^-1} + 1$; $\;\; y_{^-1} = y_{^-1} + 1$\; \label{ln:001}
       $x_{^1} = x_{^1} - 1$; $y_{^1} = y_{^1} - 1$\;
       $\delta_{^-1^-1} = \delta_{^-1^-1} + 1$;
       $\delta_{1^-1} = \delta_{1^-1} + 1$;
       $\delta_{11} = \delta_{11} + 1$;
-      $\delta_{^-11} = \delta_{^-11} + 1$\;
+      $\delta_{^-11} = \delta_{^-11} + 1$\; \label{ln:00N}
     }
     \When{$a_xa_y = ^-1^-1$}{ \label{ln:n1n1}
       $\delta_{^-1^-1} = \delta_{^-1^-1} + 1$\;
@@ -307,8 +292,8 @@ The details will be explored more
     \When{$a_xa_y = 11$}{
       $\delta_{11} = \delta_{11} + 1$\;
     }
-    \When{$a_xa_y = ^-11$}{ \label{ln:n11}
-      $\delta_{^-11} = \delta_{^-11} + 1$\;
+    \When{$a_xa_y = ^-11$}{
+      $\delta_{^-11} = \delta_{^-11} + 1$\; \label{ln:n11}
     }
     \When{$a_xa_y = ^-10$}{ \label{ln:n10}
       $\delta_{^-1^-1} = \delta_{^-1^-1} - 1$;  $\delta_{^-11} = \delta_{^-11} - 1$\;
@@ -322,19 +307,38 @@ The details will be explored more
       $\delta_{^-1^-1} = \delta_{^-1^-1} - 1$;  $\delta_{1^-1} = \delta_{1^-1} - 1$\;
       $y_{^-1} = y_{^-1} - 1$\;
     }
-    \When{$a_xa_y = 01$}{ \label{ln:01}
+    \When{$a_xa_y = 01$}{
       $\delta_{^-11} = \delta_{^-11} - 1$;   $\delta_{11} = \delta_{11} - 1$\;
-      $y_{^1} = y_{^1} + 1$\;
+      $y_{^1} = y_{^1} + 1$\; \label{ln:01}
     }
   }
   \caption{Procedure to update state values for each region $a_xa_y$}
   \label{alg:state_updates_basic}
 \end{algorithm}
 
+  While we've defined the state we must track for each region,
+we have not yet shown how the state evolves to account for delays in synchronization.
+The details will be explored more
+  below, but for now consider that algorithm~\ref{alg:state_updates_basic} will
+ be run for each region, whenever every cell in that region has
+ undergone an update. Lines~\ref{ln:001}--~\ref{ln:00N} contracts the interior region's
+ boundaries
+ while simultaneously expanding the boundaries of each adjacent region.
+ Lines~\ref{ln:n1n1}--~\ref{ln:n11}
+ contracts the various corner regions, while expanding their neighbor
+ regions, and lines~\ref{ln:n10}--~\ref{ln:01} performs the same
+ complimentary contraction and expansion for border regions.
+ Note finally that if algorithm~\ref{alg:state_updates_basic} is called
+ for every region $a_xa_y$ for the same global timestep, the region boundaries
+ will all return to where they have started with
+ effectively no change:  For every decrement or increment of a
+ variable of state in one region, there is a corresponding increment or decrement
+ in the opposite direction in another.
+
 Algorithm~\ref{alg:state_updates_basic} is verbose for clarity,
 but for all other state manipulation we'll introduce a more compact
-notation.  To acheive this we introduce some redundancy by
-building intersection points from the variables introduced.
+notation.  To achieve we build
+ intersection points from the variables introduced.
 For example,
 where line $y = x_{^-1}$ intersects with line $x = y_{^-1}$ is
 the point $[x_{^-1}, y_{^-1}]$.  In general we'll write,
@@ -352,14 +356,11 @@ Finally, for vectors of the subscripts themselves,
   \label{eq:u_sm}
 \end{equation}
 
-We'll operationalize these terms later in matrix form, and state them now \footnote{
-    Defining equations~\ref{eq:p_sm}--~\ref{eq:u_sm} allows for the easy manipulation
-    of these terms in matrices, because we're nesting the vector terms so as not to dilute
-    the matrix properties we wish to manipulate by adding a 3rd dimension to each set of state
-    variables.  That having been said, a better generalization with more ready extension to
-    the 3D version of this noise tolerance algorithm may be better attained with a tensor
-    representation which is still under study, and would likely change the
-    matrix representations described in this section.
+We'll operationalize these terms later, and state them in matrix form now \footnote{
+    Defining equations~\ref{eq:p_sm}--~\ref{eq:u_sm} allows us
+    to ignore the inner vectors and manipulate the following terms
+    with matrix operations.  A more robust formulation may be to
+    use tensors which is a current topic of investigation.
   }.  For boundary intersections,
 \begin{equation}
   \mathbf{B} \equiv \begin{bmatrix}
@@ -371,7 +372,7 @@ We'll operationalize these terms later in matrix form, and state them now \footn
       \end{bmatrix}
       \label{eq:B}
 \end{equation}
-For interior edge intersections,
+For interior point intersections,
 \begin{equation}
   \mathbf{P} \equiv \begin{bmatrix}
     [x_{^-1}, y_{^-1}] & [x_1, y_{^-1}] \\
@@ -426,7 +427,7 @@ by this state will be presented.
   \begin{subfigure}[ht]{.5\textwidth}
     \centering
     \includegraphics[width=0.8\textwidth]{minimal_tiles.eps}
-    \caption{Illustration of fundamental dimensions to define each region's boundary: $h,H,V$ and
+    \caption{Illustration of the fundamental dimensions that define each region's boundary: $h,H,V$ and
     $h',H',V'$.  We'll show in this section how to derive both bounds from the same function}\label{subfig:mintile}
   \end{subfigure}
   ~
@@ -434,10 +435,10 @@ by this state will be presented.
     \centering
     \includegraphics[width=\textwidth]{subdivision.eps}
     \caption{A subdivision of all regions by drawing a horizontal and vertical line through the origin
-    $\mathcal{O}$ - note how each region now looks very similar to the regions annotated in \ref{subfig:mintile}}
+    $\mathcal{O}$ - note how each subdivision of each region looks very similar to the regions
+    annotated in \ref{subfig:mintile}}
     \label{subfig:subdivision}
     \end{subfigure}
-  %\includegraphics[width=0.4\textwidth]{region_map.pdf}
   \caption{An illustration of the minimal set of dimensions needed for each region to be described by the same
   bounds.}
   \label{fig:tiles}
@@ -457,42 +458,45 @@ by this state will be presented.
   \label{alg:tile_update}
 \end{algorithm}
 
-
 While the 9 regions above do not share the same dependency structure with respect to neighbor process cells,
 they do share the same geometric forms which are captured by the corner regions: The pentagon of region
-$-1-1$ and the squares of regions $1^-1$, $11$, and $^-11$ in figure~\ref{subfig:mintile} for example.
+$^-1^-1$ and the squares of regions $1^-1$, $11$, and $^-11$ in figure~\ref{subfig:mintile} for example.
   The figure further illustrates dimensions
-$H,h$ and $V$ for regions $-1-1$ and $^-11$ which capture both the pentagon and square shapes.
-Therefore, to update any
-region's grid cells, we can consider an approach outlined in the pseudocode
-of algorithm~\ref{alg:tile_update}.
+$H,h$ and $V$ for regions $^-1^-1$ and $^-11$ which capture both the pentagon and square shapes.
+
+Given these observations, the pseudocode
+of algorithm~\ref{alg:tile_update} presents a
+reasonable approach to iterating over the cells of each
+region in a uniform way.
   In line~\ref{ln:all_tiles} of the pseudo code, we assume that the unit tiles
  illustrated in figure~\ref{subfig:mintile} can be derived as a function of
- the region $a_xa_y$, and then in lines \ref{ln:H}--\ref{ln:V} each dimension
- ($H,h$, and $V$) can
- be derived as a function of the region tiles.  This is a
- very rough outline of
- what we develop formally below, but it serves as a good guide for our
- intuition.
+ the region $a_xa_y$, and then in lines \ref{ln:H}--\ref{ln:V},
+  each tile dimension ($H,h$, and $V$) can
+ be derived as a function of the tile specific to that region.
+ This pseudocode is a very rough outline of
+ what we develop formally below, but it serves as
+ useful checkpoint in our intuition.
 
-To further understand how each region provides the information needed to
-determine the set of uniform tiles, consider figure~\ref{subfig:subdivision}.
+Figure~\ref{subfig:subdivision} provides an illustration of how
+a uniform tile structure can be extracted from each region.
 This figure rescales figure~\ref{subfig:mintile} slightly and draws
-a subdivion of each region
+a subdivision of each region
 by intersecting perpendicular lines through an origin term (black center dot)
 given by,
 \begin{equation}
   \mathcal{O} \equiv \bigl[x_{^-1} + \frac{x_1 - x_{^-1}}{2}, \;\;\; y_{^-1} + \frac{y_1 - y_{^-1}}{2} \bigl].
   \label{eq:O}
 \end{equation}
-The intersecting lines through this point, cut accross the center of $00$ horizontally and vertically,
-and cut acrross the other side regions
-($01$,$0-1$,$10$,$-10$) either horizontally or vertically.  The highlighted blue dots then represent the
+The intersecting lines through this point, cut across the center of $00$ horizontally and vertically,
+and cut across the other side regions
+($01$,$0^-1$,$10$,$^-10$) either horizontally or vertically.  The blue dots then represent the
 origins of each unit geometry which can be specified by $H$, $h$, and $V$ as illustrated
 in figure~\ref{subfig:mintile}.
 
-With this in mind, as long as we can concisely shift our origin and bounds for each region, we can use the
-uniform iterates provided by algorithm~\ref{alg:tile_update} for every region and region subdivision.
+With this in mind, as long as we can concisely shift our origin
+and bounds for each region, we can use the
+uniform iterates provided by algorithm~\ref{alg:tile_update} for
+every region and its subdivision.
 We can do this via simple coordinate transformations,
 and rotations.  Transformations are defined by
 \begin{eqnarray}
@@ -509,33 +513,37 @@ standard rotation matrix in 2 dimensions,
     \text{sin}(\theta) & \text{cos}(\theta)
     \end{bmatrix}.
 \end{equation}
-
+To employ rotations properly, we'll need to know what angles
+of rotation are required in each region and for each subdivision.
+  To relate these rotations to the bounds of
+figure~\ref{subfig:mintile}, we'll develop a function
+that maps these angles to the state matrices of
+section~\ref{sec:state}.
 \begin{figure}[h]
   \centering
-  \begin{subfigure}[h]{.5\textwidth}
+  \begin{subfigure}[h]{.4\textwidth}
     \centering
     \includegraphics[width=.8\textwidth]{vectors.eps}
-    \caption{Vectors and angles corrsponding to each
-    region, with color coded sets of $0^o - 270^o$.  The
+    \caption{Vectors and angles corresponding to each
+    region, with color coded sets of angles from $0^o - 270^o$.  The
     angle is calculated relative to the unit vector of
     figure~\ref{subfig:unit}}
     \label{subfig:all_vectors}
   \end{subfigure}
   ~
-  \begin{subfigure}[h]{.4\textwidth}
+  \begin{subfigure}[h]{.3\textwidth}
     \centering
     \includegraphics[width=\textwidth]{unit_square.eps}
-    \caption{Unit vector overalayed on coordinates
+    \caption{Unit vector overlaid on coordinates
     corresponding to region labels}
     \label{subfig:unit}
     \end{subfigure}
-  %\includegraphics[width=0.4\textwidth]{region_map.pdf}
   \caption{Region angles, and the unit vector}
   \label{fig:vectors}
 \end{figure}
 
-To employ rotations properly, we'll need to know what rotations must be performed
-in each region, for each subdivision.
+\subsection{Regional Coordinate Rotation Angles}
+
 Figure~\ref{subfig:all_vectors} illustrates the number of rotations present in each
 region, along
 with their rotation angles and the vectors they're derived from.  In practice, we'll
@@ -562,7 +570,6 @@ for each region can now proceed as follows:
 \end{enumerate}
 Given that we know the angles we're looking for--enumerated in figure~\ref{subfig:all_vectors}--
 it is straightforward to verify the derived procedure.
-
 \begin{algorithm}[hb]
   \setcounter{AlgoLine}{0}
   \Procedure{$AngleSearch(a_xa_y \in \mathcal{R})$}{
@@ -575,7 +582,7 @@ it is straightforward to verify the derived procedure.
 
     $\Theta = \{\}$\;
 
-    \For{$s \in \mathcal{S}' $}{
+    \For{$\mathbf{s} \in \mathcal{S}' $}{
       $\mathbf{u} = \mathbf{s} - [a_x,\;\; a_y]$\;  \label{ln:as7}
 
       $\Theta = \Theta \cup atan2(\mathbf{u}\cdot\mathbf{v}^u, |\mathbf{u}^T || {\mathbf{v}^u}^T| )$\;  \label{ln:as8}
@@ -586,27 +593,30 @@ it is straightforward to verify the derived procedure.
   and returns the set $\Theta$ of all the angles associated with it.}
   \label{alg:angle_search}
 \end{algorithm}
-
 To find the angles enumerated in figure~\ref{subfig:all_vectors},
 we formalize some notions of our unit labelings of each region:
 \begin{flalign}
-  \mathcal{R} \equiv &\;\; \{ -1-1,0-1,1-1,-10,00,10,-11,01,11 \}\\
-  \mathcal{S}_u \equiv &\;\; \{ -1-1,1-1,-11,11 \}\\
+  \mathcal{R} \equiv &\;\; \{ ^-1^-1,0^-1,1^-1,^-10,00,10,^-11,01,11 \}\\
+  \mathcal{S}_u \equiv &\;\; \{ ^-1^-1,1^-1,^-11,11 \}\\
   \mathbf{v}^u \equiv &\;\; [1, \;\; 1].
 \end{flalign}
-$\mathcal{R}$ is just the set of all possible regions given our breakdown where $a_xa_y \in \mathcal{R}$
-always.  Note further that our notation for $a_xa_y$, can also be thought of as indicating a
-vector $[a_x, \;\; a_y]$, and we will use the notations interchangably. $\mathcal{S}_u$ is a subset
-of $\mathcal{R}$, and provides a way to derive the angles of figure~\ref{subfig:all_vectors}
-along with the unit vector, $\mathbf{v}^u$.
+$\mathcal{R}$ is just the set of all possible regions where $a_xa_y \in \mathcal{R}$
+always.  $\mathcal{S}_u$ is a subset
+of $\mathcal{R}$, and provides a way to derive the angles of
+figure~\ref{subfig:all_vectors} when taken together with
+$\mathbf{v}^u$, the unit vector.  Finally, recall that our
+notation for $a_xa_y$, can also be thought of as indicating a
+vector $[a_x, \;\; a_y]$, and we will use the notations interchangeably.
 
 Algorithm~\ref{alg:angle_search} formalizes the procedure outlined in steps
 1-3 above, and proceeds as follows.  Line~\ref{ln:as3} adds every region vector
- $a_xa_y$ to each element of $\mathcal{S}_u$, before finding the intersection of these vectors with the set
- of valid labels in line~\ref{ln:as4}.  With these valid label's in hand, line~\ref{ln:as7} calculates the
-  corresponding vectors of each region $a_xa_y$--
-  in fact the $\mathbf{u}$ calculated here are the vectors
- displayed and color coded for each region in figure~\ref{subfig:all_vectors}.  Finally, the angle between
+ $a_xa_y$ to each element of $\mathcal{S}_u$, before finding the intersection of
+ the resulting vectors with the set
+ of valid labels in line~\ref{ln:as4}.  With these valid label's in hand,
+ line~\ref{ln:as7} reverses the operation of line~\ref{ln:as4}, and
+ the resulting $\mathbf{u}$ are in fact the vectors
+ displayed and color coded for each region in figure~\ref{subfig:all_vectors}.
+ Finally, the angle between
  the vector $\mathbf{u}$ and the unit vector $\mathbf{v}^u$ are calculated in
  line~\ref{ln:as7}.  The trigonometric function $atan2$ is used in order to return an angle between $0$ and
  $360$ to conform to our target rotations (figure~\ref{subfig:all_vectors}).  The inputs to this function
@@ -614,15 +624,16 @@ are the dot product of $\mathbf{u}$ and $\mathbf{v}^u$ followed by the determina
 concatenated together--concatenation denoted by $||$, and the determinant denoted with vertical bars on
 each side of the expression, $| \cdot |$.
 
-With our state composition defined in section~\ref{sec:state}, and our ability to isolate uniform tiles by
-angle with
-procedure~\ref{alg:angle_search}, we're now able to derive an expression for $H$, $h$, and $V$ illustrated in
-figure~\ref{subfig:mintile}, and therefore  implement our update pseudocode outlined by
-procedure~\ref{alg:tile_update}.  Specifically, each tile's dimensions ($H$, $h$, and $V$) can be
-expressed as functions where $h,H,V: (a_xa_y,\theta) \ra \mathbb{R}^+$.
-To develop these functions, we'll need a way to index state variables presented in section~\ref{sec:state}.
-  The first observation that can aid intuition of the indexing scheme derived is to observe the core
-  variables of state~\ref{eq:P} and~\ref{eq:D},
+\subsection{Indexing State By Region Label and Rotation Angles}
+
+In order to write an analytic expression for $H$, $h$, and $V$,
+ one more relationship is required: The state defined in
+ section~\ref{sec:state} as a function of $a_xa_y$ and $\theta$.
+  This relationship has two parts: a method of indexing 2x2
+  matrices by an angle $\theta\in\{0,90,180,270\}$, and
+  operations to flip the rows and columns of a 2x2 matrix.
+We'll start with an intuition of the indexing scheme.
+  Recall the variables of state~\ref{eq:P} and~\ref{eq:D}:
 \[
   \mathbf{P} \equiv \begin{bmatrix}
     [x_{^-1}, y_{^-1}] & [x_1, y_{^-1}] \\
@@ -636,17 +647,17 @@ and
     \delta_{^-11} & \delta_{11}
     \end{bmatrix}.
 \]
-
 Note that for region $00$, $H,V$, and $h$ can all be written in terms of each term in these matrices
-for each angle $\theta$ by moving counter-clockwise through the matrix~\ref{eq:P} starting
-in the bottom right corner of each matrix (i.e. $\mathbf{P}_{11}$ and $\mathbf{\Delta}_{11}$).  For example
+for each angle $\theta$ by moving clockwise starting
+in the bottom right corner of each matrix
+(i.e. $\mathbf{P}_{11}$ and $\mathbf{\Delta}_{11}$).  For example
 at $\theta=0^o$ for region $00$, $H,V$, and $h$ will all be bounded by $[x_1,\; y_1]$ and $\delta_{11}$
 (i.e. the terms of $\mathbf{P}_{11}$ and $\mathbf{\Delta}_{11}$).  This observation on the pattern of
 matrix indexing according to angle rotations can be generalized for rows (denoted \textsf{r}) and columns
 (denoted \textsf{c}) of matrices as
 \begin{flalign}
-  \textsf{c} &= \mathbf{min}(1 + [R_{-\theta} \cdot \mathbf{v}^u]_y, 1)\\
-  \textsf{r} &= \mathbf{min}(1 + [R_{-\theta} \cdot \mathbf{v}^u]_x, 1).
+  \textsf{c} &\equiv \mathbf{min}(1 + [R_{-\theta} \cdot \mathbf{v}^u]_y, 1)\\
+  \textsf{r} &\equiv \mathbf{min}(1 + [R_{-\theta} \cdot \mathbf{v}^u]_x, 1).
 \end{flalign}
 To simplify notation however, for any 2x2 matrix $M$ and
 angle $\theta \in \{0,90,180,360\}$, we write
@@ -654,11 +665,17 @@ angle $\theta \in \{0,90,180,360\}$, we write
    M[\theta] \equiv M_{\textsf{rc}},
    \label{eq:tidx}
 \end{equation}
-Which allows us to directly index variables of state by angle $\theta$.  To do this for any region
-$a_xa_y$ however, the expressions of state in their current matrix form would not be sufficient to
-employ this kind of angle based indexing universally without first transforming the matrices of state
-given by matrices~\eqref{eq:B}--\eqref{eq:D}.
-This transformation is given by the following function, where for state matrix $M$,
+which allows us to directly index variables of state by angle
+$\theta$.  However this function will remain limited to
+region $00$ without first providing regional transformations
+for the matrices of state presented in section~\ref{sec:state}.
+
+The matrices of state given by equations
+~\eqref{eq:B}--\eqref{eq:D} can be indexed by $\theta$
+for all regions $a_xa_y \in \mathcal{R}$ as in
+equation \eqref{eq:tidx} if they are first transformed.
+This transformation is given by the following function, where
+for the state matrix $M$, the
 region transformation $M_{a_xa_y}$, is defined as:
 \begin{equation}
   M_{a_xa_y} \equiv \begin{pmatrix}
@@ -681,6 +698,8 @@ of matrix $M$ by $\begin{pmatrix}
   \end{pmatrix}$ flips its columns.  Given our relatively small state space,
 this can be verified as yielding appropriate matrices of state
 for each region through an exhaustion of cases.
+
+\subsection{Uniform Region Bounds}
 
 Taken together, equations~\ref{eq:tidx} and~\ref{eq:flips}, allow us to retrieve the variables
  of state given $\theta$ and $a_xa_y$,
@@ -716,26 +735,21 @@ requires reworking equation~\ref{eq:O} with the ceiling function,
                              y_{^-1} + \ceil[\Big]{\frac{y_1 - y_{^-1}}{2}} \bigl],
     \label{eq:discreteO}
 \end{equation}
-and using using it in equations~\eqref{eq:h}--\eqref{eq:V}.  Algorithm \ref{alg:updates}
+and using using it in equations~\eqref{eq:h}--\eqref{eq:V}.
+
+Algorithm \ref{alg:updates}
 puts these equations together and gives precise analytic form to
 the pseudocode developed in algorithm~\ref{alg:tile_update}.
-
-% TODO: DELETE
-% \footnote{
-%   Here's where the matrix notation developed gets abused.  Because we're looking at a matrix of vectors in some cases
-%   ($\mathbf{P}$ above for example), operations~\ref{eq:flips} must act separately on the vector components, where
-%   $\mathbf{P}^x = \begin{bmatrix}
-%     x_{^-1} & x_1 \\
-%     x_{^-1} & x_1
-%   \end{bmatrix}$ and $\mathbf{P}^y = \begin{bmatrix}
-%     y_{^-1} & y_{^-1} \\
-%     y_1 & y_1
-%   \end{bmatrix}$, and $\mathbf{P}_{a_xa_y}$ is actually computing $\mathbf{P}^x_{a_xa_y}$ and $\mathbf{P}^y_{a_xa_y}$
-%   before rejoining. Likewise, operation~\ref{eq:tidx} is applied to the individual components of each matrix of vectors
-%   before being rejoined again.  Tensor algebra may be able to simplify this slight of hand, but those formalisms are
-%   still being researched.
-% }
-
+In the interest of concision, line~\ref{ln:update} omits a precise definition of a 5
+point stencil, but simply states that $g(t,x,y) = f(t,x,y)$ meaning at time
+$t$, we can compute the value of a stencil at $g(t,x,y)$ given some function $f$
+of the same point $x,y$ at the prior time $t-1$.
+Line~\ref{ln:as} executes the procedure of algorithm~\ref{alg:angle_search},
+and illustrates the parallel between our notion of a tile and
+it's apparent encoding as an angle.  The potential for
+an intersection in the mathematical research on {\it tiling} is
+intriguing, but has yet to bear analytic fruit beyond the broad
+observations made in this section.
 \begin{algorithm}[h]
   \setcounter{AlgoLine}{0}
   $\Theta = AngleSearch(a_xa_y)$\; \label{ln:as}
@@ -756,26 +770,8 @@ the pseudocode developed in algorithm~\ref{alg:tile_update}.
   \label{alg:updates}
 \end{algorithm}
 
-Algorithm~\ref{alg:updates} puts everything together ignoring some implemtation details,
-with equations for $H,h,$ and $V$.
-In the interest of concision, line~\ref{ln:update} omits a precise definition of a 5
-point stencil, but simply states that $g(t,x,y) = f(t,x,y)$ meaning at time
-$t$, we can compute the value of a stencil at $g(t,x,y)$ given some function $f$
-of the same point $x,y$ at the prior time $t-1$.
-Line~\ref{ln:as} executes the procedure of algorithm~\ref{alg:angle_search},
-and illustrates the parallel between our notion of a tile and
-it's apparent encoding as an angle.  The potential for
-an intersection in the mathematical research on {\it tiling} is
-intriguing, but has yet to bear analytic fruit beyond the broad
-observations made in this section.
-
-
-% % TODO: Possibly delete:
-% % With these formalisms we can also rewrite algorithm~\ref{alg:state_updates_basic}
-% % in a slightly more compact form as algorithm~\ref{alg:state_updates_compact}.
-
-% % NOTE This seems to work, but is more compact
-% %      and illicits less understanding
+% % NOTE This seems to work, and is more compact
+% %      but is harder to understand so probably not worthwhile
 % % \begin{algorithm}[h]
 % %   \setcounter{AlgoLine}{0}
 % %   $\Theta = \text{AngleSearch}(a_xa_y)$\;
@@ -791,17 +787,20 @@ observations made in this section.
 % %   \caption{Procedure to update state values for each region $a_xa_y$}
 % %   \label{alg:state_updates_compact}
 % % \end{algorithm}
-
-
 \section{Update Constraints for the Multi-Process Problem}
 
-Up until now we've been considering updates on a single process using the regions decomposed by the state
-laid out in section~\ref{sec:state}, but we still need to consider coordination between processes.
+Up until now we've been considering updates on a
+single process using the regions decomposed by the
+state
+laid out in section~\ref{sec:state}, but we still
+need to consider coordination between processes.
 Recall in our discussion of algorithm~\ref{alg:state_updates_basic} that if the procedure is called
 once for every region (i.e. $\forall a_xa_y \in \mathcal{R}$), then the borders introduced in the static
 region decomposition in section~\ref{sec:problem_statement} remain unchanged.  However when this requirement
 is relaxed, then a few things immediately follow.  In
-particular, certain conditions must be met for algorithm~\ref{alg:updates} to be invoked by a process at all.  This
+particular, certain conditions must be met for
+algorithm~\ref{alg:updates} to be invoked by a
+process region at all.  This
 section enumerates those conditions.
 
 \subsection{Nonzero Region Area}
@@ -838,7 +837,7 @@ from a region $a_xa_y$ and a process id $\pid$ to a set of positive
 integers which themselves are process ids of the processes that
 $\pid$ must communicate with (these ids are referred to as {\it neighbors}).
 
-Next, we define functions analagous to MPI's
+Next, we define functions analogous to MPI's
 $\textsf{\textup{ISend}}$ and $\textsf{\textup{IRecv}}$ respectively.
 $\textsf{send}_{a_xa_y}[n] \la \psendf(n\in\mathbb{Z}^+,\textsf{d})$ is the signature for
 a function which takes a neighbor process id as its first argument, and some
@@ -874,7 +873,7 @@ We'll call this the {\it communication update guard}.
     \includegraphics[width=.3\textwidth]{mirrorPaperFinal.eps}
     \caption{A motivating example for the utility of $\mathcal{G_M}$.  A subset of the
     2D data arrays of a left and right process are illustrated--ghost cells drawn without a border, and
-    border cells given a border.  A delimeter between regions on each process perpendicular To
+    border cells given a border.  A delimiter between regions on each process perpendicular To
      $B_x^{1}$ and $B_x^{^-1}$ is drawn for the left and right process, respectively.  Region labels
      are shown for the 4 regions of interest to the example, and the rest are omitted}
     \label{fig:mirror_motivation}
@@ -890,7 +889,7 @@ the state variables outlined in section~\ref{sec:state} are referred to as the
 Figure~\ref{fig:mirror_motivation} illustrates an example how the {\it mirror state}
 of 2 processes can become misaligned.  This discussion will not show how such a state
 is reachable, but what must be done when it occurs in order to respect the dependency
-contraints of a cell update at the border.
+constraints of a cell update at the border.
 Drawn is a left process with regions $-10$ and $10$ shown,
 and its {\it mirror process} on the right with regions $-10$ and $-1-1$.  Border cells
 of the processes are bordered by a square boxes, and a timesteps are displayed within them.
@@ -914,7 +913,7 @@ Ghost cell timesteps are displayed with no border.
 Observe that the border cells
 of the left process are exactly reflected in the ghost cells of the right process and
 vice~versa.  This in fact corresponds to the state in each process, $\mathbf{P}$ and
-$\mathbf{\Delta}$.  We assume further that this state is exchnaged between processes,
+$\mathbf{\Delta}$.  We assume further that this state is exchanged between processes,
 and stored as locally in {\it mirror variables}, where
 \begin{eqnarray}
   \mathbf{\Delta}_n^M &\equiv \mathbf{\Delta}\;\text{matrix of neighbor process $n$}\\
@@ -929,12 +928,12 @@ a region $a_xa_y$ is not updated when its appropriate ghost cells are not presen
 as in region $-10$ in figure~\ref{fig:mirror_motivation}, the boolean function
 $\mathcal{G}^M$ shown in algorithm~\ref{alg:mirror_guard} can be used.  The function
 returns $\textsf{true}$ if the region is an interior region, and then checks alignment
-with mirror quantities from its neigbor process(es).  $H(\theta,\mathbf{a})$ is
+with mirror quantities from its neighbor process(es).  $H(\theta,\mathbf{a})$ is
 mirrored by $V^M(\theta - 90^o,\mathbf{a})$, and $V(\theta,\mathbf{a})$ is mirrored
 by $V^M(\theta + 90^o,\mathbf{a})$.  This is a relationship that holds up for all
 $a_xa_y \in \mathcal{R} - \{00\}$, and can be checked by drawing out the rotated bounds
 $V$ and $H$ for all border and corner regions, along side their region bounds.
-% TODO: Double check, but this may not be necessary at all if we're overwriting
+% TODO: Double check, but this algorithm may not be necessary at all if we're overwriting
 %       mirror state for each neighbor $n$.
 % \begin{algorithm}[h]
 %   % % %% TODO: If corner, need to assert that the latest timestep is strictly

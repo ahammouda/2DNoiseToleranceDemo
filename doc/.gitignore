@@ -4,3 +4,4 @@ figures/*.pdf
 main.fdb_latexmk
 main.fls
 main.synctex.gz
+.vscode
