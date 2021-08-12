@@ -40,32 +40,58 @@
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.6\textwidth]{classic_division.eps}
+  \includegraphics[width=0.5\textwidth]{classic_division.eps}
   \caption{4 process decomposition of a 22x16 stencil.  Process labels start in the top left and proceed clockwise.  Local
   variables of state are also illustrated for indexing a 2D array, 0,1,$B_x^1$,etc.}
   \label{fig:basic}
 \end{figure}
 
-\section{Motivation And Basic Terminology}\label{sec:problem_statement}
+\section{Basic Terminology And Motivation}\label{sec:problem_statement}
+% Stencil DEF as dependency structure
+The solution of partial differential equations (PDEs)
+is a well known problem in computing addressed by numerous
+numerical methods.
+To solve a PDE numerically, a method must choose a discrete
+form of the equation.
+A key characteristic of the discrete form chosen is its
+ {\it stencil}.
+%   characterizes the discretization used for the numerical
+% solutions of partial differential equations (PDEs).
+A stencil
+ defines a dependency structure that constrains
+the execution of the method.  The dynamics
+of this dependency structure is the topic of this section.
+These dynamics further define a central performance bottleneck in
+solving PDEs on parallel processors which is the motivation of
+ the algorithm
+presented in the sections that follow.
 
-The solutions of partial differential equations (PDEs) are classic problems for parallel
-computers and use
-what are known as stencil methods.
 Figure~\ref{fig:basic} illustrates an example of a {\it stencil}
 for a 2D PDE at grid cell $(B_x^1,B_y^1)$ of process 4.
-At cell $(B_x^1,B_y^1)$ there is a single blue circle surrounded by 4 circles.
-This structure is known as a {\it 5-point stencil} for the 5 blue circles in the image,
-and it is derived from the underlying discretization of the PDE being solved.
+At cell $(B_x^1,B_y^1)$ there is a single blue circle surrounded by
+4 circles.
+This structure is known as a {\it 5-point stencil} for the 5 blue
+circles in the image, and it characterizes a well known
+discretization for the solution of 2D PDEs.
 The grid cell containing the
 center circle is the spatially dependent value of the PDE at a given point in
- time.
-The cells of the adjacent circles are the
-spatial dependencies for the center cell.
+ time.  This value can undergo an {\it update} as a function of
+ the values of the
+ grid cells in the adjacent circles for that same point in time.
+  We therefore refer to those adjacent grid cells as {\it
+ dependencies}.
+ The unit of time taken for a
+ cell to update the value of its PDE is referred to as the
+ {\it timestep} of that cell.  Given a well defined stencil,
+ the relationship between the
+  timestep of a cell and its adjacent cells can be studied
+ independently of the values of the underlying PDE.
 
 \begin{wrapfigure}{r}{0.5\linewidth}
   \centering
   \includegraphics[width=0.5\textwidth]{timeStepDependencies.eps}
-  \caption{An illustration of grid cell timestep, and its relationship to
+  \caption{An illustration of grid cell timesteps, and their
+  relationship to
   stencil dependencies.  In cell $(B_x^1,B_y^1)$ dependencies are met, and a
   valid update of the cell can be performed.  In cell $(B_x^1,1)$ the opposite
   is true.  Transparent blue and red circles are overlaid respectively
@@ -73,14 +99,11 @@ spatial dependencies for the center cell.
   \label{fig:timestep}
 \end{wrapfigure}
 
-Because these spatial dependencies are functions of time,
-whenever a PDE's value is updated once at a grid cell, the dependency
-structure changes for that grid cell.
-The unit of time taken for a cell update
- is referred to as the {\it timestep} of that cell.
-  Figure~\ref{fig:timestep} illustrates the timestep at each cell of process 4
+% Implications of Dependency Structure For Single Proc
+Figure~\ref{fig:timestep} illustrates the timestep at each cell of process 4
 from figure~\ref{fig:basic},
-for some arbitrary point during the execution of a stencil method.  It
+for some arbitrary point during the computation of a
+PDE's solution.  It
 demonstrates how the spatial dependencies of each cell can change
 with time.  The cell
 $(B_x^1,B_y^1)$ has a time step of 3, and so do all of its adjacent cells.
@@ -88,47 +111,68 @@ When a cell has neighbors above, below, left, and right of it which contain
 values computed from the same timestep, we'll say the cell's
 dependencies are {\it valid} at a given point in time.  When any one of its
 neighbors does not contain a value from the same timestep, then its
-depencies are {\it invalid}.  An example of invalid dependencies is given in
+depencies are {\it invalid}.  An example of a cell with
+invalid dependencies is given in
 cell $(B_x^1,1)$ in figure~\ref{fig:timestep}, where the value of the PDE
 is only completed up to the 2nd timestep, and it's neighboring cells
-contain values from different timesteps.
+contain values from different timesteps.  Given
+that timesteps increment for every update,
+a cell with {\it valid} dependencies in
+one timestep may aquire {\it invalid}
+dependencies immediately following an update, and any
+numerical solver is constrained by this.
 
-This dependency structure has an impact on the performance of any
-parallelization strategy for the stencil method.
-Parallelizing a large 2D stencil using a SIMD
-strategy starts with the definition of a global area over which
-computation is required, followed by a subdivision of that area
-into 2D grids for each
-processing unit to manage.  Figure~\ref{fig:basic} illustrates the general principle for 4 processing units,
-each with separate
-11x8 grid portions of the total 22x16 global grid size.  While there are indeed 13x10 grid cells for each
-process subdivision illustrated, the gray cells for each process are in fact redundant, and they
-hold information which come from the adjacent blue cells held by neighbor processes hence the term {\it ghost} cells
-indicated in the diagram key.  To make the example explicit, cells $(1,1) - (B_x^1,1)$ of process 1 need to be
-reflected in cells $(1,B_y^1+1) - (B_x^1, B_y^1+1)$ on process 4 in order for it to compute cells
-$(1,B_y^1) - (B_x^1, B_y^1)$.
-  This interprocess dependency is a direct result of the 5 point stencil described above.
-  Because of this dependency structure, each process' illustated blue region
-({\it border region}) must have up to date records in their ghost regions from the corresponding
- blue region of the nearest process on each side.
+% Implications of dep structure for multi-proc
+The constraints resulting from the stencil's dependency structure
+further constrains the efficacy of a
+parallelization strategy for computing a 2D PDE.  A typical
+strategy starts with the definition of a global 2D area over which
+a PDE is being solved, followed by a subdivision of that area
+into separate 2D grids for each
+processing unit to manage.  Figure~\ref{fig:basic} illustrates the general principle for
+4 processing units, each with separate
+11x8 grid portions of the total 22x16 global grid size.
+For a parallel numerical method that cannot exploit shared memory,
+the 11x8 grids are insufficient to capture interprocess
+dependencies, requiring
+13x10 grid cells for each process subdivision illustrated.
+The additional gray ({\it ghost}) cells which account for the increased
+dimensions are redundant relative to the global PDE solution, and they
+hold information which originates from the blue ({\it border}) cells
+held by the adjacent processes.  To give a precise example in
+figure~\ref{fig:basic},
+cells $(1,1) - (B_x^1,1)$ of process 1 need to be
+reflected in cells $(1,B_y^1+1) - (B_x^1, B_y^1+1)$ on process 4 in order
+for process 4 to compute cells $(1,B_y^1) - (B_x^1, B_y^1)$.  The analagous
+constraint is true for the other border/ghost cell pairs for each of the
+processes.
+This data sharing between processes defines an additional process level
+ dependency that is a direct
+  result of the cell level dependency structure introduced by a 5 point
+  stencil.  It requires that each processes' border
+  region must have constantly updated values
+  in their ghost regions from the corresponding
+ border regions of the nearest process along each dimension of its grid.
 
-This dependency structure between processes is known as a {\it nearest neighbor} dependency structure, and divides
-each process' local grid into 9 distinct {\it regions} depending on where they are positioned relative
- to ghost cells which
-must be received from neighbor processes.  Continuing to use process 4
+ % Classification of grid regions according to interprocess dependency
+This dependency structure between processes is known as a
+{\it nearest neighbor} dependency structure, and divides
+each processes' local grid into 9 distinct {\it regions} depending on
+their degree of interprocess dependence.  Continuing to use process 4
 in figure~\ref{fig:basic} as an example, the
 regions are the green
 shaded {\it interior region}, and then 8 blue shaded border regions.  The interior region depends only on border
 regions, and is therefore relatively independent of neighbor processes (that independence will be later quantified).
 The border regions have 2 types of dependence.  The first type depends on only one neighbor process.  This is
 given by cell ranges on the 4 sides of the 2D grid: $(2,1) - (B_x^1 - 1, 1)$, $(1,2) - (1,B_y^1 - 1)$,
-$(2,B_y^1) - (B_x^1 - 1, B_y^1)$, and $(B_x^1,2) - (B_x^1,B_y^1 - 1)$.  In these ranges only the gray ghost cells
- received from a single process are
+$(2,B_y^1) - (B_x^1 - 1, B_y^1)$, and $(B_x^1,2) - (B_x^1,B_y^1 - 1)$.  In these ranges only the
+border cells received from a single adjacent process are
 needed to successfully compute grid cells at each point.  The other type of
-border region depends on 2 processes and exists solely
+region depends on 2 processes and exists exclusively
 in the corners of the 2D grid at cells: $(1,1)$, $(1,B_y^1)$, $(B_x^1,B_y^1)$,
 and $(B_x^1,1)$.
 
+% Performance bottleneck introduced by interprocess DEP
 Given the 9 static regions described, if a process wishes to execute a complete
 timestep for each cell in its grid, it must synchronize the pace of its timesteps
 with each neighbor process .
@@ -137,10 +181,10 @@ it becomes beneficial
 to develop strategies to relax these synchronization requirements.
 In order to do so while maintaining
 valid stencil dependencies reqires relaxing the boundaries of the 9 classically
-static regions of a 2D stencil
+static regions of a 2D grid
 on each process.  In the next section we'll describe how this is done, before
-developing a concise approach for performing region updates only when
-the region contains valid dependencies for each cell.
+developing a concise approach for performing region updates
+that guarantee valid cell level dependencies.
 
 % TODO: Add diagram from topc paper of the time dimension of dependencies, and put them somewhere
 % (or a 2D timelapse of halos)
@@ -174,22 +218,25 @@ the region contains valid dependencies for each cell.
   \label{fig:local_decomposition}
 \end{figure}
 
-Figure~\ref{fig:region_vectors} illustrates a more concise labeling of
+Figure~\ref{fig:region_vectors} illustrates a concise labeling of
 each of the 9 regions described above, whose boundaries have been relaxed to arbitrary positions.
   Figure~\ref{fig:state_labels} illustrates the minimal set of variables needed to relax region boundaries
 for a single process, and delimits the regions they collectively form.
 With these dynamic variables of state, each process has enough information
 to ensure the grid cells
-of each region have valid 5 point stencil dependency structures\footnote{
+of each region have valid dependencies\footnote{
   This isn't proven formally at the moment, but is part of the research plan
 }.
-This is because each state variables captures information about the timestep,
+This is because each state variable captures information about the timestep,
 and therefore dependency information of each region.  To illustrate this point,
 consider the 'interior region', $00$, which
 has no explicit dependencies.  Given that the number of grid cells in $00$
-dominates the number of grid cells in the border region, we're typically safe to continue shrinking this region
-and updating it's grid cells regardless of whether neighbor process data has been aquired for the timesteps.
-Therefore, we define the maximal timestep possible as being the uniform timestep reached by the interior most
+dominates the number of grid cells in the border region, we're
+typically safe to continue shrinking this region
+and updating it's grid cells regardless of whether neighbor
+process data has been aquired for border updates.
+Therefore, we define the maximal timestep possible as being
+the uniform timestep reached by the interior most
 region, $00$,
 
 \begin{equation}
@@ -199,9 +246,9 @@ From this definition, every region's timestep can be further defined relative to
 variables drawn in figure~\ref{fig:state_labels}.  For example, variable $x_{^-1}$ is the difference in the
  number of timesteps completed by the interior region and the number of timesteps completed at the leftmost edge
  of region $-10$.  $x_{^-1}$ is also equal to the number of timesteps since the last time a ghost cell was received along
- that border.  To further exemplify, $\delta_{^-1^-1}$ can be thought of as the number of times
+ that border.  Further, $\delta_{^-1^-1}$ can be thought of as the number of times
 region $^-10$ or region $0^-1$ have been updated without a corresponding update to region $^-1^-1$, making $\delta_{^-1^-1}$
-negative as illustrated.  On the other hand, figure~\ref{fig:state_labels} illustrates a positive
+negative as illustrated.  Figure~\ref{fig:state_labels} also illustrates a positive
  $\delta_{1^-1}$ term.  This can occur when $00$ has updated several times without
 any updates from regions $0^-1$, $10$, or $1^-1$.  Because $\delta$ can be both positive or negative
 it's intuition is not as straightforward, but it's function as a bookkeeping term is just as important, and
@@ -215,30 +262,30 @@ is summarized analytically along with the rest of the illustrated variables of s
 \end{equation}
 where $t(a_xa_y,i_x,i_y)$ provides the timestep for region $a_xa_y$ in grid cell $(i_x,i_y)$.
 
-The only variables equation~\ref{eq:ts} doesn't capture from figure~\ref{fig:state_labels} are the
+The only variables equation~\eqref{eq:ts} doesn't capture from figure~\ref{fig:state_labels} are the
 static boudary terms, denoted by the $B$ variables.  Each $B^{-1}$ term denotes a lower bound, and $B^1$
  term
 denotes an upper bound for the grid cells along dimensions $x$ and $y$ which are
 correspondingly subscripted $B_x$ and $B_y$.
-  These terms will represent array indexing for a process, so $B^-1 = 0$ always, and $B^1 > 0$ always.
+  These terms will represent array indexing for a process, so $B^-1 = 0$ and $B^1 > 0$
+  for dimensions $x$ and $y$.
 
-  To manipulate the state introduced thus far, we'll introduce a more compact
-  notation for a few intersection points.  For example,
-  where line $y = x_{^-1}$ intersects with line $x = y_{^-1}$ is
-  the point $[x_{^-1}, y_{^-1}]$.  In general we'll write,
-  \begin{equation} \label{eq:p_sm}
-    p_{qp} \equiv [x_q, x_p].
-  \end{equation}
-For $B$ terms,
-\begin{equation}
-  b_{qp} \equiv [B_x^q, B_y^p].
-  \label{eq:b_sm}
-\end{equation}
-Finally, for vectors of the subscripts themselves,
-\begin{equation}
-  u_{qp} \equiv [q, p].
-  \label{eq:u_sm}
-\end{equation}
+  While we've defined the state we must track for each region,
+we have not yet shown how the state evolves to account for delays in synchronization.
+The details will be explored more
+  below, but for now consider that algorithm~\ref{alg:state_updates_basic} will
+ be run for each region, whenever every cell in that region has
+ undergone an update.
+ % TODO: These lines mark the cases, not the updates - be clearer
+ Line~\ref{ln:00} contracts interior region's boundaries
+ while simultaneously expanding the boundaries of each adjacent region.
+ Lines~\ref{ln:n1n1}--~\ref{ln:n11} performs the same operation for each corner
+ region, and lines~\ref{ln:n10}--~\ref{ln:01} does the same for the remainder of
+ each region.  Note further that if every region update occurs within a
+ timestep, the region boundaries will all return to where they have started with
+ effectively no change in boundaries:  For every decrement or increment of a
+ variable of state, there is a corresponding increment or decrement
+ in the opposite direction.
 
 \begin{algorithm}[h]
   \setcounter{AlgoLine}{0}
@@ -283,6 +330,27 @@ Finally, for vectors of the subscripts themselves,
   \caption{Procedure to update state values for each region $a_xa_y$}
   \label{alg:state_updates_basic}
 \end{algorithm}
+
+Algorithm~\ref{alg:state_updates_basic} is verbose for clarity,
+but for all other state manipulation we'll introduce a more compact
+notation.  To acheive this we introduce some redundancy by
+building intersection points from the variables introduced.
+For example,
+where line $y = x_{^-1}$ intersects with line $x = y_{^-1}$ is
+the point $[x_{^-1}, y_{^-1}]$.  In general we'll write,
+\begin{equation} \label{eq:p_sm}
+  p_{qp} \equiv [x_q, x_p].
+\end{equation}
+For $B$ terms,
+\begin{equation}
+  b_{qp} \equiv [B_x^q, B_y^p].
+  \label{eq:b_sm}
+\end{equation}
+Finally, for vectors of the subscripts themselves,
+\begin{equation}
+  u_{qp} \equiv [q, p].
+  \label{eq:u_sm}
+\end{equation}
 
 We'll operationalize these terms later in matrix form, and state them now \footnote{
     Defining equations~\ref{eq:p_sm}--~\ref{eq:u_sm} allows for the easy manipulation
@@ -345,24 +413,10 @@ Finally for delta terms, we'll write
 %         (procedure~\ref{alg:state_updates_basic})
 %     \subitem Otherwise {\it do nothing}.
 % \end{enumerate}
-While we've defined the state we must track for each region,
-we have not yet shown how the state evolves to account for delays in synchronization.
-The details will be explored more
-  below, but for now consider that algorithm~\ref{alg:state_updates_basic} will
- be run for each region, whenever every cell in that region has received an update.
- Line~\ref{ln:00} handles the interior region, which contracts its boundaries
- while simultaneously expanding the boundaries of each neigbor region.
- Lines~\ref{ln:n1n1}--~\ref{ln:n11} performs the same operation for each corner
- region, and lines~\ref{ln:n10}--~\ref{ln:01} does the same for the remainder of
- each region.  Note further that if every region update occurs within a
- timestep, the region boundaries will all return to where they have started with
- effectively no change in boundaries:  For every decrement or increment of a
- variable of state, there is a corresponding increment or decrement
- in the opposite direction.
-
- With this summary of the state we must track, we have the
-tools to update each grid cell while respecting their dependency structures.
-In the next section, a strategy for updating any each region described
+With this summary of state for the new boundaries of a process'
+ grid, we have the tools to update each grid cell while
+ ensuring valid dependency structures.
+In the next section, a strategy for updating each region described
 by this state will be presented.
 
 \section{Uniform Region Updates}
