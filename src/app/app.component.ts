@@ -198,6 +198,7 @@ export class AppComponent implements OnInit {
   }
 
   stepRegion(a: math.matrix): { [color: string]: Array<Array<number>> }{
+    console.log(`${utils.pprinta(a)}`);
     const drawPoints: { [color: string]: Array<Array<number>> } = {};
 
     const THETA = utils.angleSearch(a);
@@ -230,7 +231,11 @@ export class AppComponent implements OnInit {
   }
 
   /**
-   * TODO: remove unused params
+   * TODO:  Line 264 is calling this.stepRegion(a)
+   *        for all regions which is causing every region to
+   *        update state even when you only want 1 region to do so
+   *        NEED TO DECOUPLE LOGIC of retreiving the draw points
+   *        from updating state
    * @param currentStep - current step being run in the outer simulation
    * @param [lowTs, highTs] - likely deprecated
    */
@@ -259,26 +264,20 @@ export class AppComponent implements OnInit {
     // Begin Calculations for each region
     R.forEach((a, i) => {
 
+      // Calculate points per region and conditionally update state
       const pointsByLabel = this.stepRegion(a);
+
       // tslint:disable-next-line:forin
       for (const key in pointsByLabel) {
         drawPoints[key] = pointsByLabel[key];
       }
-      // RESET: NOTE - shouldn't be necessary depending on the reference logic of variables
-      // this.P = [
-      //   [[this.xl, this.yl], [this.xr, this.yl]],
-      //   [[this.xl, this.yr], [this.xr, this.yr]],
-      // ];
-      // this.DELTA = [
-      //   [this.dll, this.drl],
-      //   [this.dlr, this.drr],
-      // ];
     }); // End R/region loop
 
     d3.select('svg').selectAll('*').remove();
     // Flip all points so the axis is inituitive (NOTE: svg origin is top left => We want bottom left)
     drawPoints = this.flipPointsVertically(drawPoints);
 
+    // plex password cluckCluck2021!
     // Draw with region guards on each color for easy off and on
     for (const [color, points] of Object.entries(drawPoints)) {
       const [col, label] = color.split('-');
@@ -565,7 +564,7 @@ export class AppComponent implements OnInit {
       .attr('stroke-width', 4)
       .attr('fill', color)
       .attr('fill-opacity', 0.5)
-      .on('mouseover', () => {
+      .on('click', () => {
         this.stepRegion(regionByColor[color]);
         this.calculateStateAndDraw();
       });

@@ -59,7 +59,7 @@ A key characteristic of the discrete form chosen is its
 % solutions of partial differential equations (PDEs).
 A stencil
  defines a dependency structure that constrains
-the execution of the method.  The dynamics
+the execution of the PDE solution method.  The dynamics
 of this dependency structure is the topic of this section.
 These dynamics further define a central performance bottleneck in
 solving PDEs on parallel processors which is the motivation
@@ -124,7 +124,7 @@ numerical solver is constrained by this.
 
 % Implications of dependency structure for multi-proc
 The constraints resulting from the stencil's dependency structure
-further effects the performance of a
+further effects the performance of the
 parallelization strategy for computing a 2D PDE.  A typical
 strategy starts with the definition of a global 2D area over which
 a PDE is being solved, followed by a subdivision of that area
@@ -199,7 +199,7 @@ that guarantee valid cell level dependencies.
     \centering
     \includegraphics[width=\textwidth]{prior_art_relable.eps}
     \caption{Region labels, each given by 2 digits in the form $a_xa_y$ throughout the rest of the document.
-    $a_xa_y$ additionally provides a shorthand for the vector $[a_x\;\;\; a_y]^T$, and we therefore refer to
+    $a_xa_y$ additionally provides a shorthand for the vector $[a_x,\; a_y] = \mathbf{a}$, and we therefore refer to
     these region labels as region vectors, or area vectors throughout the document.}\label{fig:region_vectors}
     \end{subfigure}
   %\includegraphics[width=0.4\textwidth]{region_map.pdf}
@@ -219,7 +219,7 @@ prior explanations as follows:
 \end{itemize}
 Region labels are also referred to as region vectors throughout this
 paper, and the general form used above, $a_xa_y$, is
-shorthand for the vector $[a_x,\; a_y]^T = \mathbf{a}^T$.
+shorthand for the vector $[a_x,\; a_y] = \mathbf{a}$.
 
 Figure~\ref{fig:state_labels} illustrates the minimal set of
 variables needed to relax the boundaries of the regions
@@ -235,8 +235,8 @@ consider the interior region, $00$, which
 has no explicit dependencies.  Given that the number of grid cells in $00$
 dominates the number of grid cells in the border region, we're
 typically safe to continue shrinking this region
-and updating it's grid cells regardless of whether neighbor
-process data has been acquired for border updates.
+and updating it's grid cells, regardless of the last timestep
+received in the ghost region.
 Therefore, we define the maximal timestep possible as being
 the uniform timestep reached by the interior most
 region, $00$,
@@ -269,8 +269,8 @@ static boundary terms, denoted by the $B$ variables.  Each $B^{-1}$ term denotes
  term
 denotes an upper bound for the grid cells along dimensions $x$ and $y$ which are
 correspondingly subscripted $B_x$ and $B_y$.
-  These terms will represent array indexing for a process, so $B^{-1} = 0$ and $B^1 > 0$
-  for dimensions $x$ and $y$.
+  % These terms will represent array indexing for a process, so $B^{-1} = 0$ and $B^1 > 0$
+  % for dimensions $x$ and $y$.
 
 \begin{algorithm}[h]
   \setcounter{AlgoLine}{0}
@@ -330,20 +330,21 @@ The details will be explored more
  complimentary contraction and expansion for border regions.
  Note finally that if algorithm~\ref{alg:state_updates_basic} is called
  for every region $a_xa_y$ for the same global timestep, the region boundaries
- will all return to where they have started with
- effectively no change:  For every decrement or increment of a
- variable of state in one region, there is a corresponding increment or decrement
- in the opposite direction in another.
+ will all return to where they have started and remain
+ fixed.
+%  :  For every decrement or increment of a
+%  variable of state in one region, there is a corresponding increment or decrement
+%  in the opposite direction in another.
 
 Algorithm~\ref{alg:state_updates_basic} is verbose for clarity,
 but for all other state manipulation we'll introduce a more compact
-notation.  To achieve we build
+notation.  To that end, we build
  intersection points from the variables introduced.
 For example,
 where line $y = x_{^-1}$ intersects with line $x = y_{^-1}$ is
 the point $[x_{^-1}, y_{^-1}]$.  In general we'll write,
 \begin{equation} \label{eq:p_sm}
-  p_{qp} \equiv [x_q, x_p].
+  p_{qp} \equiv [x_q, y_p].
 \end{equation}
 For $B$ terms,
 \begin{equation}
@@ -367,7 +368,7 @@ We'll operationalize these terms later, and state them in matrix form now \footn
     [B_x^{-1}, B_y^{-1}] & [B_x^{1}, B_y^{-1}] \\
     [B_x^{-1}, B_y^{1}] & [B_x^{1}, B_y^{1}]
     \end{bmatrix} \equiv \begin{bmatrix}
-      b_{^-1^-1} & b_{1^-1}] \\
+      b_{^-1^-1} & b_{1^-1} \\
       b_{^-11} & b_{11}
       \end{bmatrix}
       \label{eq:B}
@@ -378,7 +379,7 @@ For interior point intersections,
     [x_{^-1}, y_{^-1}] & [x_1, y_{^-1}] \\
     [x_{^-1}, y_1] & [x_1, y_1]
   \end{bmatrix} \equiv \begin{bmatrix}
-    p_{^-1^-1} & p_{1^-1}] \\
+    p_{^-1^-1} & p_{1^-1} \\
     p_{^-11} & p_{11}
     \end{bmatrix}.
   \label{eq:P}
@@ -390,7 +391,7 @@ more in the next section,
   [-1, -1] & [1, -1] \\
   [-1, 1] & [1, 1]
   \end{bmatrix} \equiv \begin{bmatrix}
-    u_{^-1^-1} & u_{1^-1}] \\
+    u_{^-1^-1} & u_{1^-1} \\
     u_{^-11} & u_{11}
     \end{bmatrix}.
   \label{eq:indices}
@@ -460,14 +461,22 @@ by this state will be presented.
 
 While the 9 regions above do not share the same dependency structure with respect to neighbor process cells,
 they do share the same geometric forms which are captured by the corner regions: The pentagon of region
-$^-1^-1$ and the squares of regions $1^-1$, $11$, and $^-11$ in figure~\ref{subfig:mintile} for example.
+$^-1^-1$ and the squares of regions $1^-1$, $11$, and
+$^-11$ in figure~\ref{subfig:mintile}
+for example.
   The figure further illustrates dimensions
-$H,h$ and $V$ for regions $^-1^-1$ and $^-11$ which capture both the pentagon and square shapes.
+$H,h$ and $V$ for regions $^-1^-1$ and $H',h'$ and $V'$
+for $^-11$, which uniformly capture both the pentagon
+and square shapes.
+We'll refer to the geometric forms described by these
+examples as {\it tiles} or {\it unit tiles}.
 
-Given these observations, the pseudocode
-of algorithm~\ref{alg:tile_update} presents a
-reasonable approach to iterating over the cells of each
-region in a uniform way.
+The uniformity of the tiles illustrated in
+figure~\ref{subfig:mintile}, suggests an approach
+to iterating over the cells of each
+region in a uniform way which is
+summarized in the pseudocode
+of algorithm~\ref{alg:tile_update}.
   In line~\ref{ln:all_tiles} of the pseudo code, we assume that the unit tiles
  illustrated in figure~\ref{subfig:mintile} can be derived as a function of
  the region $a_xa_y$, and then in lines \ref{ln:H}--\ref{ln:V},
@@ -478,7 +487,7 @@ region in a uniform way.
  useful checkpoint in our intuition.
 
 Figure~\ref{subfig:subdivision} provides an illustration of how
-a uniform tile structure can be extracted from each region.
+a uniform tile structure can be extracted from every region.
 This figure rescales figure~\ref{subfig:mintile} slightly and draws
 a subdivision of each region
 by intersecting perpendicular lines through an origin term (black center dot)
@@ -489,7 +498,9 @@ given by,
 \end{equation}
 The intersecting lines through this point, cut across the center of $00$ horizontally and vertically,
 and cut across the other side regions
-($01$,$0^-1$,$10$,$^-10$) either horizontally or vertically.  The blue dots then represent the
+($01$,$0^-1$,$10$,$^-10$) either horizontally or vertically.
+The blue dots illustrated
+alongside the origin term represent the
 origins of each unit geometry which can be specified by $H$, $h$, and $V$ as illustrated
 in figure~\ref{subfig:mintile}.
 
@@ -557,11 +568,11 @@ illustrating the labels of each
 region overlaid on a
 cartesian plain, where the labels assemble to form a unit square centered on
 $[0, \;\; 0]$.
-Further, the unit vector whose
-tail to head goes from $[0, \;\; 0]$ to $[1, \;\; 1]$ provides an orientation from
+Further, the {\it unit vector} of figure~\ref{subfig:unit} whose
+tail to head goes from $[0, \;\; 0]$ to $[1, \;\; 1]$
+provides an orientation from
 which to measure the angles in figure~\ref{subfig:all_vectors}.
-  The vector of figure~\ref{subfig:unit} will be
-  called the {\it unit vector}.  Our procedure for uncovering angles
+  Our procedure for uncovering angles
 for each region can now proceed as follows:
 \begin{enumerate}
   \item Find the vectors which map to our unit tiles
@@ -628,7 +639,10 @@ each side of the expression, $| \cdot |$.
 
 In order to write an analytic expression for $H$, $h$, and $V$,
  one more relationship is required: The state defined in
- section~\ref{sec:state} as a function of $a_xa_y$ and $\theta$.
+ section~\ref{sec:state} as a function of the region $a_xa_y$
+ and
+ the elements of its set $\theta \in \Theta$, described in
+ the prior section.
   This relationship has two parts: a method of indexing 2x2
   matrices by an angle $\theta\in\{0,90,180,270\}$, and
   operations to flip the rows and columns of a 2x2 matrix.
@@ -651,7 +665,7 @@ Note that for region $00$, $H,V$, and $h$ can all be written in terms of each te
 for each angle $\theta$ by moving clockwise starting
 in the bottom right corner of each matrix
 (i.e. $\mathbf{P}_{11}$ and $\mathbf{\Delta}_{11}$).  For example
-at $\theta=0^o$ for region $00$, $H,V$, and $h$ will all be bounded by $[x_1,\; y_1]$ and $\delta_{11}$
+at $\theta=0^o$ and for region $00$, $H,V$, and $h$ will all be bounded by $[x_1,\; y_1]$ and $\delta_{11}$
 (i.e. the terms of $\mathbf{P}_{11}$ and $\mathbf{\Delta}_{11}$).  This observation on the pattern of
 matrix indexing according to angle rotations can be generalized for rows (denoted \textsf{r}) and columns
 (denoted \textsf{c}) of matrices as
@@ -729,7 +743,7 @@ From equations~\ref{eq:pv}--~\ref{eq:uv}, we can write $h,H,V: (a_xa_y,\theta) \
     \label{eq:V}
 \end{equation}
 Making these functions discrete (i.e. $h,H,V: (a_xa_y,\theta) \ra \mathbb{Z}^+$)
-requires reworking equation~\ref{eq:O} with the ceiling function,
+requires reworking equation~\ref{eq:O} with the ceiling function as follows,
 \begin{equation}
     \mathcal{O} \equiv \bigl[x_{^-1} + \ceil[\Big]{\frac{x_1 - x_{^-1}}{2}}, \;\;\;
                              y_{^-1} + \ceil[\Big]{\frac{y_1 - y_{^-1}}{2}} \bigl],
@@ -742,7 +756,7 @@ puts these equations together and gives precise analytic form to
 the pseudocode developed in algorithm~\ref{alg:tile_update}.
 In the interest of concision, line~\ref{ln:update} omits a precise definition of a 5
 point stencil, but simply states that $g(t,x,y) = f(t,x,y)$ meaning at time
-$t$, we can compute the value of a stencil at $g(t,x,y)$ given some function $f$
+$t$, we can compute the value of a stencil, $g(t,x,y)$, given some function $f$
 of the same point $x,y$ at the prior time $t-1$.
 Line~\ref{ln:as} executes the procedure of algorithm~\ref{alg:angle_search},
 and illustrates the parallel between our notion of a tile and
