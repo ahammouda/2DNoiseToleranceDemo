@@ -18,8 +18,14 @@
       (x<sub>l</sub>, y<sub>r</sub>) = ({{xl}}, {{yr}}) <br>
       (x<sub>r</sub>, y<sub>r</sub>) = ({{xr}}, {{yr}}) <br>
       <br>
-      Current Step: {{currentStep}} <br>
-      Steps Remaining: {{priorSteps + controls.get('totalSteps').value }}
+
+      <i>t<sub>max</sub></i> = {{tmax}}<br>
+      <!-- TODO: These 2 steppers don't
+      really have much region in the context
+      of regional stepping - replace with
+      something else-->
+      <!-- Current Step: {{currentStep}} <br>
+      Planned Steps: {{priorSteps + controls.get('totalSteps').value * controls.get('updateRate').value }} -->
     </div>
   </mat-grid-tile>
 
@@ -27,16 +33,18 @@
     <div [formGroup]="controls">
       <div class="example-button-row">
 
-        <button mat-raised-button color="primary" (click)="step()">Run</button>
-        <button mat-raised-button color="accent" (click)="reset()">Reset</button>
+        <!-- <button mat-raised-button color="primary" (click)="step()">Run</button> -->
+        <button mat-raised-button color="accent" (click)="reset()">Reset Simulation</button>
       </div>
       <br>
       <br>
 
-      <label for="totalSteps">Enter Total Steps</label><br>
-      <input type="number" id="totalSteps" formControlName="totalSteps">
+      <label for="updateRate">Steps Per Frame</label><br>
+      <input type="number" id="updateRate" formControlName="updateRate"><br>
 
-      <div formGroupName="interrupts">
+      <label for="totalSteps">Frames Per Click</label><br>
+      <input type="number" id="totalSteps" formControlName="totalSteps">
+      <!-- <div formGroupName="interrupts">
 
         <label for="leftSteps">Enter Left Delay</label><br>
         <input type="number" id="leftSteps" formControlName="leftSteps"><br>
@@ -50,7 +58,7 @@
         <label for="bottomSteps">Enter Bottom Delay</label><br>
         <input type="number" id="bottomSteps" formControlName="bottomSteps">
 
-      </div>
+      </div> -->
 
     </div>
 

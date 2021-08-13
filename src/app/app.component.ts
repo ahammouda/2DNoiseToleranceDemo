@@ -43,9 +43,6 @@ export class AppComponent implements OnInit {
   // xl = 300; yl = 200; xr = this.B1p1 - 200; yr = this.B2p1 - 300;
   // dll = -100; dlr = 200; drr = -200; drl = 0;
 
-  xl = 10; yl = 10; xr = this.B1p1 - 10; yr = this.B2p1 - 10;
-  dll = 0; dlr = 0; drr = 0; drl = 0;
-
   P: Array<Array<Array<number>>>;
   B: Array<Array<Array<number>>>;
   U: Array<Array<Array<number>>>;
@@ -53,49 +50,58 @@ export class AppComponent implements OnInit {
 
   currentStep = 0;
   priorSteps = 0;
+  tmax = 0;
 
   controls = new FormGroup({
-    interrupts: new FormGroup({
-      leftSteps: new FormControl(100, [Validators.min(0)]),
-      rightSteps: new FormControl(100, [Validators.min(0)]),
-      topSteps: new FormControl(100, [Validators.min(0)]),
-      bottomSteps: new FormControl(100, [Validators.min(0)]),
-    }),
+    // interrupts: new FormGroup({
+    //   leftSteps: new FormControl(100, [Validators.min(0)]),
+    //   rightSteps: new FormControl(100, [Validators.min(0)]),
+    //   topSteps: new FormControl(100, [Validators.min(0)]),
+    //   bottomSteps: new FormControl(100, [Validators.min(0)]),
+    // }),
+    updateRate: new FormControl(10, [Validators.required, Validators.min(1)]),
     totalSteps: new FormControl(1, [Validators.required, Validators.min(1)])
   });
+
+  xl = this.controls.get('updateRate').value;
+  yl = this.controls.get('updateRate').value;
+  xr = this.B1p1 - this.controls.get('updateRate').value;
+  yr = this.B2p1 - this.controls.get('updateRate').value;
+  dll = 0; dlr = 0; drr = 0; drl = 0;
 
   constructor() { }
 
   ngOnInit(): void {
-    console.log(this.controls);
     this.step();
   }
 
   reset(): void {
-    // Reset form values in addition to initializing the state
-    this.xl = 1; this.yl = 1; this.xr = this.B1p1 - 1; this.yr = this.B2p1 - 1;
-    this.dll = 0; this.dlr = 0; this.drr = 0; this.drl = 0;
+    // TODO: Reset to whatever your increment is when you get that control
+    // this.xl = 1; this.yl = 1; this.xr = this.B1p1 - 1; this.yr = this.B2p1 - 1;
+    // this.dll = 0; this.dlr = 0; this.drr = 0; this.drl = 0;
     this.controls.setValue({
-      interrupts: {
-        leftSteps: 0,
-        rightSteps: 0,
-        topSteps: 0,
-        bottomSteps: 0
-      },
-      totalSteps: 50
+      updateRate: 10,
+      totalSteps: 1
     });
+    this.xl = this.controls.get('updateRate').value;
+    this.yl = this.controls.get('updateRate').value;
+    this.xr = this.B1p1 - this.controls.get('updateRate').value;
+    this.yr = this.B2p1 - this.controls.get('updateRate').value;
+    this.dll = 0; this.dlr = 0; this.drr = 0; this.drl = 0;
     this.currentStep = 0;
     this.priorSteps = 0;
+    this.tmax = 0;
+    this.calculateStateAndDraw(false);
   }
 
   step(): void {
     this.priorSteps = this.currentStep;
-    const nsteps: number = this.controls.get('totalSteps').value + this.currentStep;
+    const nsteps: number = this.controls.get('totalSteps').value * this.controls.get('updateRate').value + this.currentStep;
     const stateLoop = () => {
       setTimeout(() => {
           this.calculateStateAndDraw();
-          this.currentStep++;
-          if (this.currentStep <= nsteps ) {
+          this.currentStep = this.currentStep + this.controls.get('updateRate').value;
+          if (this.currentStep < nsteps ) {
             stateLoop();
           }
         },
@@ -103,43 +109,43 @@ export class AppComponent implements OnInit {
       );
     };
     stateLoop();
-
   }
 
   updateState(a: math.matrix): void {
+    const increment = this.controls.get('updateRate').value;
     if (this.eX(a) === 0 && this.eY(a) === 0){
-      this.dlr = this.dlr + 1;  this.drr = this.drr + 1;
-      this.dll = this.dll + 1;  this.drl = this.drl + 1;
-      this.xl = this.xl + 1; this.xr = this.xr - 1;
-      this.yl = this.yl + 1; this.yr = this.yr - 1;
-
+      this.dlr = this.dlr + increment;  this.drr = this.drr + increment;
+      this.dll = this.dll + increment;  this.drl = this.drl + increment;
+      this.xl = this.xl + increment; this.xr = this.xr - increment;
+      this.yl = this.yl + increment; this.yr = this.yr - increment;
+      this.tmax = this.tmax + increment;
       // Horizontal Middles
     } else if (this.eX(a) === 0 && this.eY(a) === 1 ) {
-      this.yr = this.yr + 1;
-      this.dlr = this.dlr - 1;  this.drr = this.drr - 1;
+      this.yr = this.yr + increment;
+      this.dlr = this.dlr - increment;  this.drr = this.drr - increment;
 
     } else if (this.eX(a) === 0 && this.eY(a) === -1 ) {
-      this.yl = this.yl - 1;
-      this.dll = this.dll - 1;  this.drl = this.drl - 1;
+      this.yl = this.yl - increment;
+      this.dll = this.dll - increment;  this.drl = this.drl - increment;
 
       // Vertical Middles
     } else if (this.eX(a) === 1 && this.eY(a) === 0 ) {
-      this.xr = this.xr + 1;
-      this.drl = this.drl - 1;  this.drr = this.drr - 1;
+      this.xr = this.xr + increment;
+      this.drl = this.drl - increment;  this.drr = this.drr - increment;
 
     } else if (this.eX(a) === -1 && this.eY(a) === 0 ) {
-      this.xl = this.xl - 1;
-      this.dll = this.dll - 1;  this.dlr = this.dlr - 1;
+      this.xl = this.xl - increment;
+      this.dll = this.dll - increment;  this.dlr = this.dlr - increment;
 
       // Corners
     } else if (this.eX(a) === -1 && this.eY(a) === -1 ) {
-      this.dll = this.dll + 1;
+      this.dll = this.dll + increment;
     } else if (this.eX(a) === 1 && this.eY(a) === -1 ) {
-      this.drl = this.drl + 1;
+      this.drl = this.drl + increment;
     } else if (this.eX(a) === -1 && this.eY(a) === 1 ) {
-      this.dlr = this.dlr + 1;
+      this.dlr = this.dlr + increment;
     } else if (this.eX(a) === 1 && this.eY(a) === 1 ) {
-      this.drr = this.drr + 1;
+      this.drr = this.drr + increment;
     }
   }
 
@@ -171,34 +177,33 @@ export class AppComponent implements OnInit {
   }
 
   conditionallyUpdateState(a: math.matrix): void {
-    const leftDelay = this.controls.get('interrupts.leftSteps').value;
-    const rightDelay = this.controls.get('interrupts.rightSteps').value;
-    const topDelay = this.controls.get('interrupts.topSteps').value;
-    const bottomDelay = this.controls.get('interrupts.bottomSteps').value;
+    // const leftDelay = this.controls.get('interrupts.leftSteps').value;
+    // const rightDelay = this.controls.get('interrupts.rightSteps').value;
+    // const topDelay = this.controls.get('interrupts.topSteps').value;
+    // const bottomDelay = this.controls.get('interrupts.bottomSteps').value;
 
-    const isLeft = (this.currentStep -  this.priorSteps)  < leftDelay;
-    const isRight = (this.currentStep -  this.priorSteps)  < rightDelay;
-    const isTop = (this.currentStep -  this.priorSteps)  < topDelay;
-    const isBottom = (this.currentStep -  this.priorSteps)  < bottomDelay;
+    // const isLeft = (this.currentStep -  this.priorSteps)  < leftDelay;
+    // const isRight = (this.currentStep -  this.priorSteps)  < rightDelay;
+    // const isTop = (this.currentStep -  this.priorSteps)  < topDelay;
+    // const isBottom = (this.currentStep -  this.priorSteps)  < bottomDelay;
 
-    if ( this.eX(a) === -1  && isLeft) {
-      console.log(`DELAY ${utils.pprinta(a)}`);
-    } else if ( this.eX(a) === 1  && isRight ) {
-      console.log(`DELAY ${utils.pprinta(a)}`);
+    // if ( this.eX(a) === -1  && isLeft) {
+    //   console.log(`DELAY ${utils.pprinta(a)}`);
+    // } else if ( this.eX(a) === 1  && isRight ) {
+    //   console.log(`DELAY ${utils.pprinta(a)}`);
 
-    } else if ( this.eY(a) === 1  && isTop ) {
-      console.log(`DELAY ${utils.pprinta(a)}`);
+    // } else if ( this.eY(a) === 1  && isTop ) {
+    //   console.log(`DELAY ${utils.pprinta(a)}`);
 
-    } else if ( this.eY(a) === -1  && isBottom ) {
-      console.log(`DELAY ${utils.pprinta(a)}`);
+    // } else if ( this.eY(a) === -1  && isBottom ) {
+    //   console.log(`DELAY ${utils.pprinta(a)}`);
 
-    } else {
-      this.updateState(a);
-    }
+    // } else {
+    this.updateState(a);
+    // }
   }
 
-  stepRegion(a: math.matrix): { [color: string]: Array<Array<number>> }{
-    console.log(`${utils.pprinta(a)}`);
+  stepRegion(a: math.matrix, skipIncrement: boolean = false): { [color: string]: Array<Array<number>> }{
     const drawPoints: { [color: string]: Array<Array<number>> } = {};
 
     const THETA = utils.angleSearch(a);
@@ -223,7 +228,8 @@ export class AppComponent implements OnInit {
 
     }); // End THETA loop
 
-    if (validUpdate) {
+    if (validUpdate && !skipIncrement) {
+      console.log(`VALID UPDATE FOR ${utils.pprinta(a)}`);
       // Conditionally update state according to formConrols interrupt settings, etc
       this.conditionallyUpdateState(a);
     }
@@ -231,7 +237,7 @@ export class AppComponent implements OnInit {
   }
 
   /**
-   * TODO:  Line 264 is calling this.stepRegion(a)
+   * TODO:  Line 268 is calling this.stepRegion(a)
    *        for all regions which is causing every region to
    *        update state even when you only want 1 region to do so
    *        NEED TO DECOUPLE LOGIC of retreiving the draw points
@@ -239,7 +245,7 @@ export class AppComponent implements OnInit {
    * @param currentStep - current step being run in the outer simulation
    * @param [lowTs, highTs] - likely deprecated
    */
-  calculateStateAndDraw(): void {
+  calculateStateAndDraw(incrementAll: boolean = true): void {
     this.P = [
       [[this.xl, this.yl], [this.xr, this.yl]],
       [[this.xl, this.yr], [this.xr, this.yr]],
@@ -265,7 +271,7 @@ export class AppComponent implements OnInit {
     R.forEach((a, i) => {
 
       // Calculate points per region and conditionally update state
-      const pointsByLabel = this.stepRegion(a);
+      const pointsByLabel = this.stepRegion(a, !incrementAll);
 
       // tslint:disable-next-line:forin
       for (const key in pointsByLabel) {
@@ -330,9 +336,10 @@ export class AppComponent implements OnInit {
   }
 
   /**
-   * NOTE: We want to use these to draw a path line, so ordering matters
+   * given tile dimensions, and angle create a `path` for the tile geometry
+   *    NOTE: Because we want to use these to draw a path line, so matters
    * @param theta - tiling angle
-   * @param bounds - 3 region invariant bounds
+   * @param bounds - 3 region invariant bounds h,H, and V
    */
   arrangeBoundaryPoints(theta: number, a: math.matrix, bounds: [number, number, number]): number[][] {
     const shift = 0; // RADIUS + 10;
@@ -418,8 +425,8 @@ export class AppComponent implements OnInit {
       math.abs(this.eY(ra)) * this.eX(ru) * d;
     const Vtheta = this.eY(rp) + this.eY(ra) * this.eY(rb) - this.eY(rO) * (1 - math.abs(this.eY(ra))) +
       math.abs(this.eX(ra)) * this.eY(ru) * d;
-    console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; h=${hTheta}, H=${Htheta}, V=${Vtheta};
-      rp=${utils.pprinta(rp)};  rO=${utils.pprinta(rO)}`);
+    // console.log(`theta: ${theta * 180 / math.pi}; a: ${utils.pprinta(a)}; h=${hTheta}, H=${Htheta}, V=${Vtheta};
+    //   rp=${utils.pprinta(rp)};  rO=${utils.pprinta(rO)}`);
 
     return [hTheta, Htheta, Vtheta];
   }
@@ -506,29 +513,47 @@ export class AppComponent implements OnInit {
       .attr('font-size', 16);
   }
 
-  renderPoint(x: number, y: number, color: string, label: string) {
-    const scale = 1;
-    const xScale = d3.scaleLinear()
-      .domain([this.B1n1, this.B1p1])
-      .range([this.B1n1 * scale, this.B1p1 * scale]);
-    const yScale = d3.scaleLinear()
-      .domain([this.B2n1, this.B2p1])
-      .range([this.B2n1 * scale, this.B2p1 * scale]);
+  // renderPoint(x: number, y: number, color: string, label: string) {
+  //   const scale = 1;
+  //   const xScale = d3.scaleLinear()
+  //     .domain([this.B1n1, this.B1p1])
+  //     .range([this.B1n1 * scale, this.B1p1 * scale]);
+  //   const yScale = d3.scaleLinear()
+  //     .domain([this.B2n1, this.B2p1])
+  //     .range([this.B2n1 * scale, this.B2p1 * scale]);
 
-    d3.select('svg')
-      .append('circle')
-      .attr('cx', xScale(x))
-      .attr('cy', yScale(y))
-      .attr('fill', color)
-      .attr('r', RADIUS);
+  //   d3.select('svg')
+  //     .append('circle')
+  //     .attr('cx', xScale(x))
+  //     .attr('cy', yScale(y))
+  //     .attr('fill', color)
+  //     .attr('r', RADIUS);
 
-    d3.select('svg')
-      .append('text')
-      .attr('x', xScale(x) + 2.5)
-      .attr('y', yScale(y) + 2.5)
-      .text(
-        label
+  //   d3.select('svg')
+  //     .append('text')
+  //     .attr('x', xScale(x) + 2.5)
+  //     .attr('y', yScale(y) + 2.5)
+  //     .text(
+  //       label
+  //     );
+  // }
+
+  loopRegionStep(a: math.matrix): void {
+    this.priorSteps = this.currentStep;
+    const nsteps: number = this.controls.get('totalSteps').value * this.controls.get('updateRate').value + this.currentStep;
+    const stateLoop = () => {
+      setTimeout(() => {
+          this.stepRegion(a);
+          this.calculateStateAndDraw(false);
+          this.currentStep = this.currentStep + this.controls.get('updateRate').value;
+          if (this.currentStep < nsteps ) {
+            stateLoop();
+          }
+        },
+        1000 // 1 second timeout
       );
+    };
+    stateLoop();
   }
 
   draw(points: Array<Array<number>>, color: string, label: string = ''): void {
@@ -541,7 +566,7 @@ export class AppComponent implements OnInit {
       .domain([this.B2n1, this.B2p1])
       .range([this.B2n1 * scale, this.B2p1 * scale]);
 
-    console.log(points);
+    // console.log(points);
     const line = d3.line()
       .x(d => d3.scaleLinear()
         .domain([this.B1n1, this.B1p1])
@@ -565,8 +590,9 @@ export class AppComponent implements OnInit {
       .attr('fill', color)
       .attr('fill-opacity', 0.5)
       .on('click', () => {
-        this.stepRegion(regionByColor[color]);
-        this.calculateStateAndDraw();
+        // this.stepRegion(regionByColor[color]);
+        // this.calculateStateAndDraw(false);
+        this.loopRegionStep(regionByColor[color]);
       });
 
     // Find min/max, and midpoint for all the points
