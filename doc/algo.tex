@@ -726,20 +726,20 @@ Taken together, equations~\ref{eq:tidx} and~\ref{eq:flips}, allow us to retrieve
 From equations~\ref{eq:pv}--~\ref{eq:uv}, we can write $h,H,V: (a_xa_y,\theta) \ra \mathbb{R}^+$,
 \begin{equation}
     h(\theta,\av) = [\rnt \cdot \pv^T]_x + [\rnt \cdot \av^T]_x \cdot [\rnt \cdot \bv^T]_x -
-    [\rnt \cdot \orig]_x \cdot (1 - |\rnt \cdot \av^T|_x) +
-    (1 - |\rnt \cdot \av^T|_y) \cdot \mathbf{min}_{x,y}(\rnt \cdot \uv ) \cdot \delta
+    [\rnt \cdot \orig^T]_x \cdot (1 - |\rnt \cdot \av^T|_x) +
+    (1 - |\rnt \cdot \av^T|_y) \cdot \mathbf{min}_{x,y}(\rnt \cdot \uv^T ) \cdot \delta
     \label{eq:h}
 \end{equation}
 \begin{equation}
     H(\theta,\av) = [\rnt \cdot \pv^T]_x + [\rnt \cdot \av^T]_x \cdot [\rnt \cdot \bv^T]_x -
-    [\rnt \cdot \orig]_x \cdot (1 - |\rnt \cdot \av^T|_x) +
-    |\rnt \cdot \av^T|_y \cdot [\rnt \cdot \uv ]_x \cdot \delta
+    [\rnt \cdot \orig^T]_x \cdot (1 - |\rnt \cdot \av^T|_x) +
+    |\rnt \cdot \av^T|_y \cdot [\rnt \cdot \uv^T ]_x \cdot \delta
     \label{eq:H}
 \end{equation}
 \begin{equation}
     V(\theta,\av) = [\rnt \cdot \pv^T]_y + [\rnt \cdot \av^T]_y \cdot [\rnt \cdot \bv^T]_y -
-    [\rnt \cdot \orig]_y \cdot (1 - |\rnt \cdot \av^T|_y) +
-    |\rnt \cdot \av^T|_x \cdot [\rnt \cdot \uv ]_y \cdot \delta
+    [\rnt \cdot \orig^T]_y \cdot (1 - |\rnt \cdot \av^T|_y) +
+    |\rnt \cdot \av^T|_x \cdot [\rnt \cdot \uv^T ]_y \cdot \delta
     \label{eq:V}
 \end{equation}
 Making these functions discrete (i.e. $h,H,V: (a_xa_y,\theta) \ra \mathbb{Z}^+$)
